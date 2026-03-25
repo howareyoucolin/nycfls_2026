@@ -63,16 +63,11 @@ jobs:
             --exclude='cache/' \
             --exclude='uploads/' \
             --exclude='logs/' \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='docker/' \
-            --exclude='docker-compose.yml' \
-            --exclude='README.md' \
             --exclude='.DS_Store' \
             --exclude='.dh-diag/' \
             --exclude='*.log' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o IdentitiesOnly=yes" \
-            ./ \
+            public/ \
             ${DH_PROD_USER}@${DH_PROD_HOST}:${DH_PROD_REMOTE_PATH}
 
       - name: Generate config.php

@@ -2,6 +2,8 @@
 
 PHP + MySQL site with local Docker support and DreamHost deployment via GitHub Actions.
 
+Production deploys sync the contents of `public/` only.
+
 ## Local development
 
 ### Prerequisites
