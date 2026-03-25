@@ -1,0 +1,55 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "18082:80"
+    volumes:
+      - ./:/var/www/html
+    container_name: dadi360-2026
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=dadi360_2026
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-dadi360-2026
+    ports:
+      - "13307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=dadi360_2026
+      - MYSQL_USER=dadi360_user
+      - MYSQL_PASSWORD=dadi360_password
+    volumes:
+      - dadi360_2026_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-dadi360-2026
+    ports:
+      - "18083:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=rootpassword
+      - MYSQL_ROOT_PASSWORD=rootpassword
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+volumes:
+  dadi360_2026_data:
