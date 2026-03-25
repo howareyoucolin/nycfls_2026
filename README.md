@@ -14,8 +14,8 @@ PHP + MySQL site with local Docker support and DreamHost deployment via GitHub A
 docker-compose up --build
 ```
 
-- **App:** http://localhost:18082
-- **phpMyAdmin:** http://localhost:18083
+- **App:** http://localhost:18084
+- **phpMyAdmin:** http://localhost:18085
 
 ### Shell into the PHP container
 
@@ -25,13 +25,8 @@ docker exec -it dadi360-2026 /bin/bash
 
 ## GitHub Actions secrets
 
-Set these repository secrets before deploying from `main`:
+Set this repository secret before deploying from `main`:
 
-- `DH_PROD_SSH_KEY`
-- `DH_PROD_HOST`
-- `DH_PROD_USER`
-- `DH_PROD_REMOTE_PATH`
-- `DH_PROD_DB_HOST`
-- `DH_PROD_DB_NAME`
-- `DH_PROD_DB_USERNAME`
-- `DH_PROD_DB_PASSWORD`
+- `DH_PROD_CONFIG_JSON`
+
+Use [`secrets/dreamhost-config.json`](/Users/colinzhou/Desktop/test/dadi360_2026/secrets/dreamhost-config.json) as your local template for the JSON payload. The `secrets/` folder is gitignored, so you can keep your real values there safely and copy the whole JSON object into the `DH_PROD_CONFIG_JSON` GitHub secret.

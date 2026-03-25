@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     ports:
-      - "18082:80"
+      - "18084:80"
     volumes:
       - ./:/var/www/html
     container_name: dadi360-2026
@@ -21,7 +21,7 @@ services:
     image: mysql:8.0
     container_name: mysql-dadi360-2026
     ports:
-      - "13307:3306"
+      - "13308:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=rootpassword
       - MYSQL_DATABASE=dadi360_2026
@@ -40,7 +40,7 @@ services:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin-dadi360-2026
     ports:
-      - "18083:80"
+      - "18085:80"
     environment:
       - PMA_HOST=mysql
       - PMA_PORT=3306

@@ -1,4 +1,5 @@
 config.php
+secrets/
 
 .DS_Store
 **/.DS_Store
