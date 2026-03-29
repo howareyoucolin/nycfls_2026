@@ -1,0 +1,10 @@
+DirectoryIndex index.php
+
+RewriteEngine On
+
+# Let Apache serve real files directly if you add CSS, JS, images, etc.
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Route everything else through the front controller.
+RewriteRule ^ index.php [QSA,L]
