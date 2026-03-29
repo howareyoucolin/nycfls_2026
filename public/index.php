@@ -24,9 +24,21 @@ foreach ($segments as $segment) {
     $safeSegments[] = $segment;
 }
 
-$pageFile = $pagesDirectory . '/' . implode('/', $safeSegments) . '.php';
+$routePath = implode('/', $safeSegments);
+$candidateFiles = [
+    $pagesDirectory . '/' . $routePath . '.php',
+    $pagesDirectory . '/' . $routePath . '/index.php',
+];
 
-if (!is_file($pageFile)) {
+$pageFile = null;
+foreach ($candidateFiles as $candidateFile) {
+    if (is_file($candidateFile)) {
+        $pageFile = $candidateFile;
+        break;
+    }
+}
+
+if ($pageFile === null) {
     http_response_code(404);
     require $pagesDirectory . '/404.php';
     exit;
