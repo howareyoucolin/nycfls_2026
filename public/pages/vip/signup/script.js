@@ -1,6 +1,7 @@
 const form = document.querySelector('[data-multistep-form]');
 
 if (form) {
+  const isDebugMode = new URLSearchParams(window.location.search).has('debug');
   const panels = Array.from(form.querySelectorAll('[data-step-panel]'));
   const indicators = Array.from(document.querySelectorAll('[data-step-indicator]'));
   const stepperShell = document.querySelector('.stepper-shell');
@@ -9,16 +10,30 @@ if (form) {
   const submitButton = form.querySelector('[data-step-action="submit"]');
   const successScreen = document.querySelector('[data-success-screen]');
   const confettiRoot = document.querySelector('[data-confetti]');
-  const photoInput = form.querySelector('#photos');
-  const previewGrid = form.querySelector('[data-preview-grid]');
-  const previewEmpty = form.querySelector('[data-preview-empty]');
-  const photoCount = form.querySelector('[data-photo-count]');
-  const photoLimit = form.querySelector('[data-photo-limit]');
-  const skipPhotosButton = form.querySelector('[data-photo-action="skip"]');
-  const maxPhotos = 6;
+  const introField = form.querySelector('#intro_text');
+  const introError = form.querySelector('[data-intro-error]');
+  const introCount = form.querySelector('[data-intro-count]');
+  const locationField = form.querySelector('#location');
+  const locationOtherWrap = form.querySelector('[data-location-other-field]');
+  const locationOtherField = form.querySelector('#location_other');
+  const joinReasonField = form.querySelector('#join_reason');
+  const joinReasonOtherWrap = form.querySelector('[data-reason-other-field]');
+  const joinReasonOtherField = form.querySelector('#join_reason_other');
+  const contactVisibilityFields = Array.from(form.querySelectorAll('input[name="contact_visibility"]'));
+  const contactFieldWrap = form.querySelector('[data-contact-field]');
+  const contactTypeField = form.querySelector('#contact_type');
+  const contactTextWrap = form.querySelector('[data-contact-text-field]');
+  const contactField = form.querySelector('#contact_info');
+  const contactQrcodeWrap = form.querySelector('[data-contact-qrcode-field]');
+  const contactQrcodeField = form.querySelector('#contact_qrcode');
+  const qrcodePreview = form.querySelector('[data-qrcode-preview]');
+  const qrcodePreviewImage = form.querySelector('[data-qrcode-preview-image]');
+  const qrcodeClearButton = form.querySelector('[data-qrcode-clear]');
   const confettiColors = ['#d94f33', '#ffd84d', '#4c8df6', '#f6b14f', '#d970d8', '#f5bccd', '#d27b2d', '#5d6ad8', '#a9d7ee'];
-  let selectedPhotos = [];
   let currentStep = 1;
+  let qrcodePreviewUrl = '';
+
+  const getVisibleLength = (value) => value.trim().length;
 
   const updateStepUI = () => {
     panels.forEach((panel, index) => {
@@ -39,21 +54,129 @@ if (form) {
     submitButton.hidden = currentStep !== panels.length;
   };
 
-  const getStepFields = (step) => {
-    const panel = panels[step - 1];
-    if (!panel) {
-      return [];
-    }
+  const updateIntroState = () => {
+    const currentLength = getVisibleLength(introField.value);
+    introCount.textContent = `当前 ${currentLength} / 40`;
 
-    return Array.from(panel.querySelectorAll('input, textarea, select')).filter((field) => !field.disabled);
-  };
-
-  const validateStep = (step) => {
-    if (step === 2) {
+    if (currentLength === 0 || currentLength >= 40) {
+      introError.hidden = true;
+      introField.setCustomValidity('');
       return true;
     }
 
-    const fields = getStepFields(step);
+    introError.hidden = false;
+    introField.setCustomValidity('自我介绍至少需要填写 40 个字。');
+    return false;
+  };
+
+  const updateLocationFieldState = () => {
+    const isOther = locationField.value === 'other';
+    locationOtherWrap.hidden = !isOther;
+    locationOtherField.disabled = !isOther;
+    locationOtherField.required = isOther;
+
+    if (!isOther) {
+      locationOtherField.value = '';
+      locationOtherField.setCustomValidity('');
+    }
+  };
+
+  const updateReasonFieldState = () => {
+    const isOther = joinReasonField.value === 'other';
+    joinReasonOtherWrap.hidden = !isOther;
+    joinReasonOtherField.disabled = !isOther;
+    joinReasonOtherField.required = isOther;
+
+    if (!isOther) {
+      joinReasonOtherField.value = '';
+      joinReasonOtherField.setCustomValidity('');
+    }
+  };
+
+  const updateContactFieldState = () => {
+    const selectedValue = form.querySelector('input[name="contact_visibility"]:checked')?.value;
+    const isVisible = selectedValue === 'yes';
+
+    contactFieldWrap.hidden = !isVisible;
+    contactTypeField.disabled = !isVisible;
+    contactTypeField.required = isVisible;
+
+    const isTextContact = isVisible && contactTypeField.value !== '' && contactTypeField.value !== 'qrcode';
+    const isQrcodeContact = isVisible && contactTypeField.value === 'qrcode';
+
+    contactTextWrap.hidden = !isTextContact;
+    contactField.disabled = !isTextContact;
+    contactField.required = isTextContact;
+
+    contactQrcodeWrap.hidden = !isQrcodeContact;
+    contactQrcodeField.disabled = !isQrcodeContact;
+    contactQrcodeField.required = isQrcodeContact;
+
+    if (!isQrcodeContact) {
+      contactQrcodeField.value = '';
+      clearQrcodePreview();
+    }
+
+    if (!isVisible) {
+      contactTypeField.value = '';
+      contactField.value = '';
+      contactQrcodeField.value = '';
+      contactField.setCustomValidity('');
+      contactQrcodeField.setCustomValidity('');
+      contactTextWrap.hidden = true;
+      contactQrcodeWrap.hidden = true;
+      clearQrcodePreview();
+    }
+  };
+
+  const clearQrcodePreview = () => {
+    if (qrcodePreviewUrl) {
+      URL.revokeObjectURL(qrcodePreviewUrl);
+      qrcodePreviewUrl = '';
+    }
+
+    qrcodePreviewImage.src = '';
+    qrcodePreview.hidden = true;
+  };
+
+  const updateQrcodePreview = () => {
+    const [file] = Array.from(contactQrcodeField.files || []);
+
+    clearQrcodePreview();
+
+    if (!file) {
+      return;
+    }
+
+    qrcodePreviewUrl = URL.createObjectURL(file);
+    qrcodePreviewImage.src = qrcodePreviewUrl;
+    qrcodePreview.hidden = false;
+  };
+
+  const validateStep = (step) => {
+    if (isDebugMode) {
+      return true;
+    }
+
+    if (step === 1) {
+      updateLocationFieldState();
+    }
+
+    if (step === 2) {
+      updateReasonFieldState();
+    }
+
+    if (step === 2 && !updateIntroState()) {
+      introField.reportValidity();
+      return false;
+    }
+
+    if (step === 3) {
+      updateContactFieldState();
+    }
+
+    const panel = panels[step - 1];
+    const fields = Array.from(panel.querySelectorAll('input, textarea, select')).filter((field) => !field.disabled);
 
     for (const field of fields) {
       if (!field.checkValidity()) {
@@ -63,54 +186,6 @@ if (form) {
     }
 
     return true;
-  };
-
-  const syncPhotoInput = () => {
-    const dataTransfer = new DataTransfer();
-    selectedPhotos.forEach((file) => dataTransfer.items.add(file));
-    photoInput.files = dataTransfer.files;
-  };
-
-  const renderPreviews = () => {
-    previewGrid.innerHTML = '';
-    photoCount.textContent = `已上传 ${selectedPhotos.length} / ${maxPhotos}`;
-    photoLimit.hidden = selectedPhotos.length < maxPhotos;
-
-    if (selectedPhotos.length === 0) {
-      previewEmpty.hidden = false;
-      return;
-    }
-
-    previewEmpty.hidden = true;
-
-    selectedPhotos.forEach((file, index) => {
-      const card = document.createElement('figure');
-      card.className = 'preview-card';
-
-      const removeButton = document.createElement('button');
-      removeButton.type = 'button';
-      removeButton.className = 'preview-remove';
-      removeButton.textContent = '×';
-      removeButton.setAttribute('aria-label', `移除 ${file.name}`);
-      removeButton.addEventListener('click', () => {
-        selectedPhotos = selectedPhotos.filter((_, fileIndex) => fileIndex !== index);
-        syncPhotoInput();
-        renderPreviews();
-      });
-
-      const image = document.createElement('img');
-      image.className = 'preview-image';
-      image.alt = file.name;
-      image.src = URL.createObjectURL(file);
-      image.onload = () => URL.revokeObjectURL(image.src);
-
-      const meta = document.createElement('figcaption');
-      meta.className = 'preview-meta';
-      meta.textContent = file.name;
-
-      card.append(removeButton, image, meta);
-      previewGrid.append(card);
-    });
   };
 
   const launchConfetti = () => {
@@ -157,27 +232,19 @@ if (form) {
     updateStepUI();
   });
 
-  photoInput.addEventListener('change', () => {
-    const [file] = Array.from(photoInput.files || []);
+  introField.addEventListener('input', updateIntroState);
+  locationField.addEventListener('change', updateLocationFieldState);
+  joinReasonField.addEventListener('change', updateReasonFieldState);
 
-    if (!file) {
-      return;
-    }
-
-    if (selectedPhotos.length >= maxPhotos) {
-      photoLimit.hidden = false;
-      photoInput.value = '';
-      return;
-    }
-
-    selectedPhotos = [...selectedPhotos, file].slice(0, maxPhotos);
-    syncPhotoInput();
-    renderPreviews();
+  contactVisibilityFields.forEach((field) => {
+    field.addEventListener('change', updateContactFieldState);
   });
 
-  skipPhotosButton.addEventListener('click', () => {
-    currentStep = Math.min(panels.length, 3);
-    updateStepUI();
+  contactTypeField.addEventListener('change', updateContactFieldState);
+  contactQrcodeField.addEventListener('change', updateQrcodePreview);
+  qrcodeClearButton.addEventListener('click', () => {
+    contactQrcodeField.value = '';
+    clearQrcodePreview();
   });
 
   form.addEventListener('submit', (event) => {
@@ -193,7 +260,9 @@ if (form) {
     launchConfetti();
   });
 
-  syncPhotoInput();
+  updateIntroState();
+  updateLocationFieldState();
+  updateReasonFieldState();
+  updateContactFieldState();
   updateStepUI();
-  renderPreviews();
 }
