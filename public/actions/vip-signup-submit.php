@@ -28,6 +28,28 @@ function post_string(string $key): string
     return trim((string) ($_POST[$key] ?? ''));
 }
 
+function create_image_resource(string $tmpPath, string $mimeType): ?GdImage
+{
+    return match ($mimeType) {
+        'image/jpeg' => imagecreatefromjpeg($tmpPath) ?: null,
+        'image/png' => imagecreatefrompng($tmpPath) ?: null,
+        'image/webp' => function_exists('imagecreatefromwebp') ? (imagecreatefromwebp($tmpPath) ?: null) : null,
+        'image/gif' => imagecreatefromgif($tmpPath) ?: null,
+        default => null,
+    };
+}
+
+function save_optimized_image(GdImage $sourceImage, string $destinationPath, string $mimeType): bool
+{
+    return match ($mimeType) {
+        'image/jpeg' => imagejpeg($sourceImage, $destinationPath, 82),
+        'image/png' => imagepng($sourceImage, $destinationPath, 8),
+        'image/webp' => function_exists('imagewebp') ? imagewebp($sourceImage, $destinationPath, 82) : false,
+        'image/gif' => imagegif($sourceImage, $destinationPath),
+        default => false,
+    };
+}
+
 $generationMap = [
     '70后' => '70',
     '80后' => '80',
@@ -97,6 +119,10 @@ if (!$isDebugMode) {
         respond(422, ['ok' => false, 'message' => '自我介绍至少需要填写 40 个字。']);
     }
 
+    if (mb_strlen($introText) > 2000) {
+        respond(422, ['ok' => false, 'message' => '自我介绍最多可填写 2000 个字。']);
+    }
+
     if ($contactVisibility === 'yes' && $normalizedContactType === null) {
         respond(422, ['ok' => false, 'message' => '请选择联系方式类型。']);
     }
@@ -143,7 +169,51 @@ if ($normalizedContactType === 'qrcode' && !empty($_FILES['contact_qrcode']['nam
     );
     $destinationPath = $uploadDirectory . '/' . $filename;
 
-    if (!move_uploaded_file($tmpPath, $destinationPath)) {
+    $saved = false;
+    if (extension_loaded('gd')) {
+        $sourceImage = create_image_resource($tmpPath, $mimeType);
+
+        if ($sourceImage instanceof GdImage) {
+            $sourceWidth = imagesx($sourceImage);
+            $sourceHeight = imagesy($sourceImage);
+            $maxDimension = 360;
+            $scale = min(1, $maxDimension / max($sourceWidth, $sourceHeight));
+            $targetWidth = max(1, (int) round($sourceWidth * $scale));
+            $targetHeight = max(1, (int) round($sourceHeight * $scale));
+            $targetImage = imagecreatetruecolor($targetWidth, $targetHeight);
+
+            if (in_array($mimeType, ['image/png', 'image/webp', 'image/gif'], true)) {
+                imagealphablending($targetImage, false);
+                imagesavealpha($targetImage, true);
+                $transparent = imagecolorallocatealpha($targetImage, 0, 0, 0, 127);
+                imagefilledrectangle($targetImage, 0, 0, $targetWidth, $targetHeight, $transparent);
+            }
+
+            imagecopyresampled(
+                $targetImage,
+                $sourceImage,
+                0,
+                0,
+                0,
+                0,
+                $targetWidth,
+                $targetHeight,
+                $sourceWidth,
+                $sourceHeight
+            );
+
+            $saved = save_optimized_image($targetImage, $destinationPath, $mimeType);
+
+            imagedestroy($targetImage);
+            imagedestroy($sourceImage);
+        }
+    }
+
+    if (!$saved) {
+        $saved = move_uploaded_file($tmpPath, $destinationPath);
+    }
+
+    if (!$saved) {
         respond(500, ['ok' => false, 'message' => '二维码图片保存失败。']);
     }
 

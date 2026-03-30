@@ -10,6 +10,7 @@ if (form) {
   const nextButton = form.querySelector('[data-step-action="next"]');
   const submitButton = form.querySelector('[data-step-action="submit"]');
   const submitFeedback = form.querySelector('[data-submit-feedback]');
+  const loadingScreen = document.querySelector('[data-loading-screen]');
   const successScreen = document.querySelector('[data-success-screen]');
   const confettiRoot = document.querySelector('[data-confetti]');
   const introField = form.querySelector('#intro_text');
@@ -55,6 +56,7 @@ if (form) {
     },
   };
   let qrcodePreviewUrl = '';
+  let isSubmitting = false;
 
   const getVisibleLength = (value) => value.trim().length;
 
@@ -84,6 +86,19 @@ if (form) {
     if (currentLength === 0 || currentLength >= 40) {
       introError.hidden = true;
       introField.setCustomValidity('');
+      if (currentLength <= 2000) {
+        introField.setCustomValidity('');
+      }
+    }
+
+    if (currentLength > 2000) {
+      introError.hidden = false;
+      introField.setCustomValidity('自我介绍最多可填写 2000 个字。');
+      return false;
+    }
+
+    if (currentLength >= 40) {
+      introError.hidden = true;
       return true;
     }
 
@@ -262,12 +277,27 @@ if (form) {
     submitFeedback.hidden = message === '';
   };
 
+  const setSubmittingState = (submitting) => {
+    isSubmitting = submitting;
+    prevButton.disabled = submitting;
+    nextButton.disabled = submitting;
+    submitButton.disabled = submitting;
+  };
+
   prevButton.addEventListener('click', () => {
+    if (isSubmitting) {
+      return;
+    }
+
     currentStep = Math.max(1, currentStep - 1);
     updateStepUI();
   });
 
   nextButton.addEventListener('click', () => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!validateStep(currentStep)) {
       return;
     }
@@ -293,6 +323,11 @@ if (form) {
   });
 
   form.addEventListener('submit', (event) => {
+    if (isSubmitting) {
+      event.preventDefault();
+      return;
+    }
+
     if (!validateStep(currentStep)) {
       event.preventDefault();
       return;
@@ -309,10 +344,11 @@ if (form) {
       return;
     }
 
-    const submitUrl = isDebugMode ? `${form.action}?debug` : form.action;
+    const submitUrl = form.action;
     const formData = new FormData(form);
     setSubmitFeedback('');
-    submitButton.disabled = true;
+    setSubmittingState(true);
+    loadingScreen.hidden = false;
 
     fetch(submitUrl, {
       method: 'POST',
@@ -331,14 +367,16 @@ if (form) {
         form.hidden = true;
         pageIntro.hidden = true;
         stepperShell.hidden = true;
+        loadingScreen.hidden = true;
         successScreen.hidden = false;
         launchConfetti();
       })
       .catch((error) => {
+        loadingScreen.hidden = true;
         setSubmitFeedback(error.message || '提交失败，请稍后再试。');
       })
       .finally(() => {
-        submitButton.disabled = false;
+        setSubmittingState(false);
       });
   });
 

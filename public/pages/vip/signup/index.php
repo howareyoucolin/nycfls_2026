@@ -117,7 +117,7 @@
           <label for="intro_text">
             用几句话介绍一下你自己
             <span class="field-subnote">你的爱好与兴趣、擅长的事情、工作或专业、性格特点、生活方式、价值观、个人目标、未来规划等</span>
-            <textarea id="intro_text" name="intro_text" placeholder="简单介绍一下你自己" required minlength="40" aria-describedby="intro_hint intro_error"></textarea>
+            <textarea id="intro_text" name="intro_text" placeholder="简单介绍一下你自己" required minlength="40" maxlength="2000" aria-describedby="intro_hint intro_error"></textarea>
           </label>
           <p class="hint" id="intro_hint">最少填写 40 个字。</p>
           <p class="error-text" id="intro_error" data-intro-error hidden>自我介绍至少需要填写 40 个字。</p>
@@ -190,6 +190,14 @@
       </div>
       <p class="submit-feedback" data-submit-feedback hidden></p>
     </form>
+
+    <section class="loading-screen" data-loading-screen hidden>
+      <div class="loading-card">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <p class="loading-title">正在提交资料</p>
+        <p class="loading-copy">请稍等一下，我们正在保存你的信息。</p>
+      </div>
+    </section>
 
     <section class="success-screen" data-success-screen hidden>
       <div class="success-confetti" data-confetti aria-hidden="true"></div>
