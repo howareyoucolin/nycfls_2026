@@ -50,6 +50,212 @@ function save_optimized_image(GdImage $sourceImage, string $destinationPath, str
     };
 }
 
+function detect_browser(string $userAgent): array
+{
+    $patterns = [
+        'Edge' => '/Edg\/([0-9\.]+)/',
+        'Chrome' => '/Chrome\/([0-9\.]+)/',
+        'Firefox' => '/Firefox\/([0-9\.]+)/',
+        'Safari' => '/Version\/([0-9\.]+).*Safari/',
+    ];
+
+    foreach ($patterns as $name => $pattern) {
+        if (preg_match($pattern, $userAgent, $matches) === 1) {
+            return [$name, $matches[1] ?? null];
+        }
+    }
+
+    return [null, null];
+}
+
+function detect_os(string $userAgent): array
+{
+    $patterns = [
+        'Windows' => '/Windows NT ([0-9\.]+)/',
+        'Android' => '/Android ([0-9\.]+)/',
+        'iOS' => '/iPhone OS ([0-9_]+)/',
+        'iPadOS' => '/CPU OS ([0-9_]+)/',
+        'macOS' => '/Mac OS X ([0-9_]+)/',
+        'Linux' => '/Linux/',
+    ];
+
+    foreach ($patterns as $name => $pattern) {
+        if (preg_match($pattern, $userAgent, $matches) === 1) {
+            $version = $matches[1] ?? null;
+            return [$name, $version !== null ? str_replace('_', '.', $version) : null];
+        }
+    }
+
+    return [null, null];
+}
+
+function detect_device_type(string $userAgent): string
+{
+    $normalizedUserAgent = strtolower($userAgent);
+
+    if (str_contains($normalizedUserAgent, 'tablet') || str_contains($normalizedUserAgent, 'ipad')) {
+        return 'tablet';
+    }
+
+    if (str_contains($normalizedUserAgent, 'mobile') || str_contains($normalizedUserAgent, 'iphone') || str_contains($normalizedUserAgent, 'android')) {
+        return 'mobile';
+    }
+
+    return 'desktop';
+}
+
+function is_public_ip(?string $ipAddress): bool
+{
+    if ($ipAddress === null || $ipAddress === '') {
+        return false;
+    }
+
+    return filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+}
+
+function fetch_ip_lookup_location(?string $ipAddress): ?string
+{
+    try {
+        if (!is_public_ip($ipAddress)) {
+            return null;
+        }
+
+        $lookupUrl = 'https://api.ipwho.org/ip/' . rawurlencode($ipAddress) . '?get=country,region,city';
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => 3,
+                'ignore_errors' => true,
+                'header' => "Accept: application/json\r\n",
+            ],
+        ]);
+
+        $responseBody = @file_get_contents($lookupUrl, false, $context);
+        if ($responseBody === false || $responseBody === '') {
+            return null;
+        }
+
+        $decoded = json_decode($responseBody, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        $payload = isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : $decoded;
+        $parts = array_filter([
+            trim((string) ($payload['city'] ?? '')),
+            trim((string) ($payload['region'] ?? '')),
+            trim((string) ($payload['country'] ?? '')),
+        ]);
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return implode(', ', $parts);
+    } catch (Throwable $exception) {
+        return null;
+    }
+}
+
+function collect_vip_meta(?int $vipId = null): array
+{
+    $userAgent = trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    [$browserName, $browserVersion] = detect_browser($userAgent);
+    [$osName, $osVersion] = detect_os($userAgent);
+    $ipAddress = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+
+    return [
+        'vip_id' => $vipId,
+        'request_method' => (string) ($_SERVER['REQUEST_METHOD'] ?? 'POST'),
+        'request_path' => (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH),
+        'query_string' => (string) ($_SERVER['QUERY_STRING'] ?? ''),
+        'ip_address' => $ipAddress,
+        'forwarded_for' => trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')),
+        'user_agent' => $userAgent,
+        'referer_url' => trim((string) ($_SERVER['HTTP_REFERER'] ?? '')),
+        'origin_url' => trim((string) ($_SERVER['HTTP_ORIGIN'] ?? '')),
+        'host_name' => trim((string) ($_SERVER['HTTP_HOST'] ?? '')),
+        'accept_language' => trim((string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '')),
+        'browser_name' => $browserName,
+        'browser_version' => $browserVersion,
+        'os_name' => $osName,
+        'os_version' => $osVersion,
+        'device_type' => detect_device_type($userAgent),
+        'ip_lookup_location' => fetch_ip_lookup_location($ipAddress),
+        'extra_payload' => json_encode([
+            'request_scheme' => $_SERVER['REQUEST_SCHEME'] ?? null,
+            'server_name' => $_SERVER['SERVER_NAME'] ?? null,
+            'server_port' => $_SERVER['SERVER_PORT'] ?? null,
+        ], JSON_UNESCAPED_UNICODE),
+    ];
+}
+
+function store_vip_meta(PDO $pdo, array $meta): void
+{
+    $statement = $pdo->prepare(
+        'INSERT INTO vip_meta (
+            vip_id,
+            request_method,
+            request_path,
+            query_string,
+            ip_address,
+            forwarded_for,
+            user_agent,
+            referer_url,
+            origin_url,
+            host_name,
+            accept_language,
+            browser_name,
+            browser_version,
+            os_name,
+            os_version,
+            device_type,
+            ip_lookup_location,
+            extra_payload
+        ) VALUES (
+            :vip_id,
+            :request_method,
+            :request_path,
+            :query_string,
+            :ip_address,
+            :forwarded_for,
+            :user_agent,
+            :referer_url,
+            :origin_url,
+            :host_name,
+            :accept_language,
+            :browser_name,
+            :browser_version,
+            :os_name,
+            :os_version,
+            :device_type,
+            :ip_lookup_location,
+            :extra_payload
+        )'
+    );
+
+    $statement->execute([
+        ':vip_id' => $meta['vip_id'],
+        ':request_method' => $meta['request_method'],
+        ':request_path' => $meta['request_path'],
+        ':query_string' => $meta['query_string'] !== '' ? $meta['query_string'] : null,
+        ':ip_address' => $meta['ip_address'] !== '' ? $meta['ip_address'] : null,
+        ':forwarded_for' => $meta['forwarded_for'] !== '' ? $meta['forwarded_for'] : null,
+        ':user_agent' => $meta['user_agent'] !== '' ? $meta['user_agent'] : null,
+        ':referer_url' => $meta['referer_url'] !== '' ? $meta['referer_url'] : null,
+        ':origin_url' => $meta['origin_url'] !== '' ? $meta['origin_url'] : null,
+        ':host_name' => $meta['host_name'] !== '' ? $meta['host_name'] : null,
+        ':accept_language' => $meta['accept_language'] !== '' ? $meta['accept_language'] : null,
+        ':browser_name' => $meta['browser_name'],
+        ':browser_version' => $meta['browser_version'],
+        ':os_name' => $meta['os_name'],
+        ':os_version' => $meta['os_version'],
+        ':device_type' => $meta['device_type'],
+        ':ip_lookup_location' => $meta['ip_lookup_location'],
+        ':extra_payload' => $meta['extra_payload'],
+    ]);
+}
+
 $generationMap = [
     '70后' => '70',
     '80后' => '80',
@@ -226,7 +432,8 @@ if ($normalizedContactType === null) {
 }
 
 try {
-    $statement = db()->prepare(
+    $pdo = db();
+    $statement = $pdo->prepare(
         'INSERT INTO vips (
             nickname,
             generation,
@@ -267,6 +474,9 @@ try {
         ':contact_info' => $contactInfo,
         ':contact_qrcode_path' => $contactQrcodePath,
     ]);
+
+    $vipId = (int) $pdo->lastInsertId();
+    store_vip_meta($pdo, collect_vip_meta($vipId));
 } catch (Throwable $exception) {
     respond(500, [
         'ok' => false,
