@@ -1,24 +1,25 @@
 # Admin App
 
-Minimal Expo React Native app for the VIP admin mobile client.
+Expo React Native app for the VIP admin mobile client.
 
 ## Run it
 
 ```bash
 cd adminApp
 npm install
-npm start
+npx expo run:android
 ```
 
 Then open it with:
 
-- iOS Simulator via `i`
-- Android Emulator via `a`
-- Expo Go by scanning the QR code
+- Android Emulator after the native build installs
+- iOS Simulator via `npx expo run:ios`
 
 ## Notes
 
-- Use `npm start` for normal development. In this app, it runs `expo start`.
-- `npx expo start` is also fine if you want to run Expo directly.
-- Do not use `npm expo start`.
-- If Metro or Expo Go seems stuck on an old build, run `npx expo start --clear`.
+- This app now uses Better Auth email/password auth.
+- Start the backend in `/adminAuthServer` before opening the app.
+- Android emulator uses `http://10.0.2.2:8787` to reach the local auth server.
+- iOS simulator uses `http://localhost:8787`.
+- If you need a different backend URL, set `EXPO_PUBLIC_BETTER_AUTH_URL` before starting the app.
+- Run `npx expo start --clear` if Metro gets stuck on old JS after a big auth change.

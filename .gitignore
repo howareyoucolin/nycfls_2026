@@ -8,3 +8,6 @@ public/uploads/
 .dh-diag/
 adminApp/node_modules/
 adminApp/.expo/
+adminAuthServer/node_modules/
+adminAuthServer/.env
+adminAuthServer/data/

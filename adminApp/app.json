@@ -2,6 +2,7 @@
   "expo": {
     "name": "Admin App",
     "slug": "admin-app",
+    "scheme": "adminapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -19,7 +20,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#f7f1e8"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.adminapp"
     },
     "web": {
       "bundler": "metro"
