@@ -112,7 +112,7 @@
           </div>
 
           <label for="intro_text">
-            请简单介绍一下你自己
+            <span class="field-note">用几句话介绍一下你自己(愛好，兴趣，擅长，工作或专业，性格, 目标, etc.)</span>
             <textarea id="intro_text" name="intro_text" placeholder="请用几句话介绍你的个性、兴趣或想让别人认识你的地方" required minlength="40" aria-describedby="intro_hint intro_error"></textarea>
           </label>
           <p class="hint" id="intro_hint">最少填写 40 个字。</p>

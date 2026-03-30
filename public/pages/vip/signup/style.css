@@ -221,6 +221,12 @@ textarea {
   color: var(--muted);
 }
 
+.field-note {
+  color: rgba(117, 101, 84, 0.82);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .error-text {
   margin: 0;
   font-size: 13px;
