@@ -6,3 +6,5 @@ public/uploads/
 **/.DS_Store
 
 .dh-diag/
+adminApp/node_modules/
+adminApp/.expo/
