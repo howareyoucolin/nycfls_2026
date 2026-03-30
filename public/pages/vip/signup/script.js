@@ -4,6 +4,7 @@ if (form) {
   const isDebugMode = new URLSearchParams(window.location.search).has('debug');
   const panels = Array.from(form.querySelectorAll('[data-step-panel]'));
   const indicators = Array.from(document.querySelectorAll('[data-step-indicator]'));
+  const pageIntro = document.querySelector('[data-page-intro]');
   const stepperShell = document.querySelector('.stepper-shell');
   const prevButton = form.querySelector('[data-step-action="prev"]');
   const nextButton = form.querySelector('[data-step-action="next"]');
@@ -23,14 +24,35 @@ if (form) {
   const contactFieldWrap = form.querySelector('[data-contact-field]');
   const contactTypeField = form.querySelector('#contact_type');
   const contactTextWrap = form.querySelector('[data-contact-text-field]');
+  const contactTextLabel = form.querySelector('[data-contact-text-label]');
   const contactField = form.querySelector('#contact_info');
   const contactQrcodeWrap = form.querySelector('[data-contact-qrcode-field]');
+  const contactQrcodeTitle = form.querySelector('[data-contact-qrcode-title]');
   const contactQrcodeField = form.querySelector('#contact_qrcode');
+  const qrcodeDropzone = form.querySelector('[data-qrcode-dropzone]');
   const qrcodePreview = form.querySelector('[data-qrcode-preview]');
   const qrcodePreviewImage = form.querySelector('[data-qrcode-preview-image]');
   const qrcodeClearButton = form.querySelector('[data-qrcode-clear]');
   const confettiColors = ['#d94f33', '#ffd84d', '#4c8df6', '#f6b14f', '#d970d8', '#f5bccd', '#d27b2d', '#5d6ad8', '#a9d7ee'];
   let currentStep = 1;
+
+  const contactCopyMap = {
+    wechat: {
+      label: '请输入你的微信',
+      placeholder: '请输入你的微信号',
+    },
+    phone: {
+      label: '请输入你的电话',
+      placeholder: '请输入你的电话号码',
+    },
+    email: {
+      label: '请输入你的邮箱',
+      placeholder: '请输入你的邮箱地址',
+    },
+    qrcode: {
+      title: '上传你的二维码',
+    },
+  };
   let qrcodePreviewUrl = '';
 
   const getVisibleLength = (value) => value.trim().length;
@@ -96,13 +118,14 @@ if (form) {
   const updateContactFieldState = () => {
     const selectedValue = form.querySelector('input[name="contact_visibility"]:checked')?.value;
     const isVisible = selectedValue === 'yes';
+    const contactType = contactTypeField.value;
 
     contactFieldWrap.hidden = !isVisible;
     contactTypeField.disabled = !isVisible;
     contactTypeField.required = isVisible;
 
-    const isTextContact = isVisible && contactTypeField.value !== '' && contactTypeField.value !== 'qrcode';
-    const isQrcodeContact = isVisible && contactTypeField.value === 'qrcode';
+    const isTextContact = isVisible && contactType !== '' && contactType !== 'qrcode';
+    const isQrcodeContact = isVisible && contactType === 'qrcode';
 
     contactTextWrap.hidden = !isTextContact;
     contactField.disabled = !isTextContact;
@@ -111,6 +134,16 @@ if (form) {
     contactQrcodeWrap.hidden = !isQrcodeContact;
     contactQrcodeField.disabled = !isQrcodeContact;
     contactQrcodeField.required = isQrcodeContact;
+
+    if (isTextContact) {
+      const textCopy = contactCopyMap[contactType];
+      contactTextLabel.textContent = textCopy.label;
+      contactField.placeholder = textCopy.placeholder;
+    }
+
+    if (isQrcodeContact) {
+      contactQrcodeTitle.textContent = contactCopyMap.qrcode.title;
+    }
 
     if (!isQrcodeContact) {
       contactQrcodeField.value = '';
@@ -123,6 +156,9 @@ if (form) {
       contactQrcodeField.value = '';
       contactField.setCustomValidity('');
       contactQrcodeField.setCustomValidity('');
+      contactTextLabel.textContent = '请输入你的联系方式';
+      contactField.placeholder = '请输入你的联系方式';
+      contactQrcodeTitle.textContent = '上传二维码';
       contactTextWrap.hidden = true;
       contactQrcodeWrap.hidden = true;
       clearQrcodePreview();
@@ -137,6 +173,7 @@ if (form) {
 
     qrcodePreviewImage.src = '';
     qrcodePreview.hidden = true;
+    qrcodeDropzone.hidden = false;
   };
 
   const updateQrcodePreview = () => {
@@ -151,6 +188,7 @@ if (form) {
     qrcodePreviewUrl = URL.createObjectURL(file);
     qrcodePreviewImage.src = qrcodePreviewUrl;
     qrcodePreview.hidden = false;
+    qrcodeDropzone.hidden = true;
   };
 
   const validateStep = (step) => {
@@ -255,6 +293,7 @@ if (form) {
 
     event.preventDefault();
     form.hidden = true;
+    pageIntro.hidden = true;
     stepperShell.hidden = true;
     successScreen.hidden = false;
     launchConfetti();

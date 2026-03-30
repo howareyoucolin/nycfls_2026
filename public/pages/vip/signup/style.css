@@ -227,6 +227,13 @@ textarea {
   font-weight: 600;
 }
 
+.field-subnote {
+  color: rgba(117, 101, 84, 0.72);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
 .error-text {
   margin: 0;
   font-size: 13px;
@@ -241,8 +248,14 @@ textarea {
 
 .contact-field {
   display: grid;
-  gap: 18px;
-  padding-top: 4px;
+  gap: 24px;
+  padding-top: 10px;
+}
+
+.contact-field > label,
+.contact-field > .conditional-field,
+.contact-field > .upload-card {
+  gap: 10px;
 }
 
 .upload-card {
@@ -276,6 +289,10 @@ textarea {
   background: rgba(255, 255, 255, 0.72);
   text-align: center;
   cursor: pointer;
+}
+
+.upload-dropzone[hidden] {
+  display: none;
 }
 
 .upload-dropzone input[type="file"] {
@@ -317,7 +334,7 @@ textarea {
 }
 
 .qrcode-preview-image {
-  width: min(100%, 220px);
+  width: min(100%, 260px);
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border: 1px solid var(--border);
@@ -336,14 +353,11 @@ textarea {
 }
 
 .actions {
-  position: sticky;
-  bottom: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 22px;
-  padding-top: 14px;
-  background: linear-gradient(180deg, rgba(247, 241, 232, 0), rgba(247, 241, 232, 0.95) 34%, rgba(247, 241, 232, 1) 100%);
+  padding-top: 6px;
 }
 
 .primary-button,

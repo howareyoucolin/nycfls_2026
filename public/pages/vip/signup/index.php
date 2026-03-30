@@ -9,8 +9,10 @@
 </head>
 <body>
   <main class="page">
-    <h1>匿名资料填写</h1>
-    <p class="intro">整个填写流程不到 1 分钟，请按步骤完成填写，每一步完成后即可进入下一步。</p>
+    <div class="page-intro" data-page-intro>
+      <h1>匿名资料填写</h1>
+      <p class="intro">整个填写流程不到 1 分钟，请按步骤完成填写，每一步完成后即可进入下一步。</p>
+    </div>
 
     <div class="stepper-shell">
       <ol class="stepper" aria-label="填写步骤">
@@ -33,7 +35,8 @@
         <p class="section-title">步骤 1 / 基本信息</p>
         <div class="fields">
           <label for="nickname">
-            匿名 / 昵称
+            昵称
+            <span class="field-subnote">昵称最好与微信名称一致，方便大家识别你</span>
             <input id="nickname" name="nickname" type="text" placeholder="请输入匿名名称或昵称" required>
           </label>
 
@@ -112,8 +115,9 @@
           </div>
 
           <label for="intro_text">
-            <span class="field-note">用几句话介绍一下你自己(愛好，兴趣，擅长，工作或专业，性格, 目标, etc.)</span>
-            <textarea id="intro_text" name="intro_text" placeholder="请用几句话介绍你的个性、兴趣或想让别人认识你的地方" required minlength="40" aria-describedby="intro_hint intro_error"></textarea>
+            用几句话介绍一下你自己
+            <span class="field-subnote">你的爱好与兴趣、擅长的事情、工作或专业、性格特点、生活方式、价值观、个人目标、未来规划等</span>
+            <textarea id="intro_text" name="intro_text" placeholder="简单介绍一下你自己" required minlength="40" aria-describedby="intro_hint intro_error"></textarea>
           </label>
           <p class="hint" id="intro_hint">最少填写 40 个字。</p>
           <p class="error-text" id="intro_error" data-intro-error hidden>自我介绍至少需要填写 40 个字。</p>
@@ -152,18 +156,18 @@
 
             <div class="conditional-field" data-contact-text-field hidden>
               <label for="contact_info">
-                联系方式内容
-                <input id="contact_info" name="contact_info" type="text" placeholder="请输入具体联系方式" disabled>
+                <span data-contact-text-label>请输入你的联系方式</span>
+                <input id="contact_info" name="contact_info" type="text" placeholder="请输入你的联系方式" disabled>
               </label>
             </div>
 
             <div class="conditional-field" data-contact-qrcode-field hidden>
               <div class="upload-card">
                 <div class="upload-copy">
-                  <p class="upload-title">上传二维码</p>
+                  <p class="upload-title" data-contact-qrcode-title>上传二维码</p>
                   <p class="hint">支持 JPG、PNG 等常见图片格式，上传后会立即显示预览。</p>
                 </div>
-                <label for="contact_qrcode" class="upload-dropzone">
+                <label for="contact_qrcode" class="upload-dropzone" data-qrcode-dropzone>
                   <input id="contact_qrcode" name="contact_qrcode" type="file" accept="image/*" disabled>
                   <span class="upload-icon">+</span>
                   <span class="upload-label">选择二维码图片</span>
