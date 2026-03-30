@@ -1,5 +1,6 @@
 config.php
 secrets/
+public/uploads/
 
 .DS_Store
 **/.DS_Store
