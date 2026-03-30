@@ -1,0 +1,334 @@
+.vip-admin-page {
+  min-height: 100vh;
+  padding: 0 0 40px;
+}
+
+.admin-hero,
+.admin-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.admin-hero {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 0 22px;
+}
+
+.hero-copy {
+  max-width: 700px;
+  margin: 10px 0 0;
+  color: rgba(238, 235, 228, 0.8);
+}
+
+.hero-chip {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff7ec;
+  font-size: 13px;
+}
+
+.admin-state-card,
+.editor-card,
+.signup-sidebar {
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(17, 23, 29, 0.88);
+  box-shadow: 0 28px 80px rgba(3, 8, 15, 0.28);
+  backdrop-filter: blur(12px);
+}
+
+.admin-state-card {
+  padding: 30px;
+}
+
+.state-copy h2,
+.sidebar-top h2,
+.editor-top h2 {
+  margin: 4px 0 0;
+}
+
+.state-kicker {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 226, 188, 0.78);
+}
+
+.state-copy p:last-child,
+.list-feedback,
+.form-feedback {
+  color: rgba(238, 235, 228, 0.78);
+}
+
+.state-footnote,
+.list-feedback,
+.form-feedback {
+  margin: 18px 0 0;
+  min-height: 24px;
+}
+
+.signin-root {
+  min-height: 420px;
+  margin-top: 22px;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.signup-sidebar,
+.editor-card {
+  padding: 22px;
+}
+
+.sidebar-top,
+.editor-top,
+.toolbar,
+.editor-actions,
+.state-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.sidebar-top,
+.editor-top {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar {
+  margin-top: 18px;
+  flex-direction: column;
+}
+
+.sidebar-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sidebar-stats span,
+.signup-item-status,
+.meta-card,
+.toggle-pill {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-stats span {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: rgba(255, 245, 231, 0.9);
+}
+
+.signup-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.signup-item {
+  width: 100%;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.signup-item:hover,
+.signup-item.is-active {
+  transform: translateY(-1px);
+  border-color: rgba(255, 226, 188, 0.38);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.signup-item-top,
+.signup-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.signup-item-top strong {
+  display: block;
+  font-size: 16px;
+}
+
+.signup-item-meta {
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(238, 235, 228, 0.68);
+}
+
+.signup-item-status {
+  padding: 5px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.signup-item-status.is-approved {
+  background: rgba(78, 190, 110, 0.18);
+  border-color: rgba(78, 190, 110, 0.36);
+  color: #d8ffe3;
+}
+
+.signup-item-status.is-pending {
+  background: rgba(255, 199, 82, 0.14);
+  border-color: rgba(255, 199, 82, 0.28);
+  color: #ffe7b2;
+}
+
+.editor-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  font-size: 13px;
+  color: rgba(255, 238, 214, 0.84);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 14, 19, 0.62);
+  color: #fff7ec;
+  font: inherit;
+}
+
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.field textarea {
+  resize: vertical;
+  margin-top: 18px;
+}
+
+.toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: #fff5e3;
+}
+
+.toggle-pill input {
+  margin: 0;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.meta-card {
+  padding: 14px;
+}
+
+.meta-label,
+.preview-title {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 226, 188, 0.66);
+}
+
+.meta-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #fff8f0;
+  line-height: 1.45;
+}
+
+.qrcode-preview-card {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.qrcode-preview-card img {
+  display: block;
+  width: min(240px, 100%);
+  margin-top: 14px;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+@media (max-width: 980px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .signup-list {
+    max-height: 420px;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-hero,
+  .admin-shell {
+    width: min(100% - 20px, 100%);
+  }
+
+  .admin-hero,
+  .sidebar-top,
+  .editor-top {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .editor-grid,
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+}

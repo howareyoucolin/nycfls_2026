@@ -40,7 +40,7 @@ function excerpt_text(string $text, int $limit = 40): array
 }
 
 try {
-    $countStatement = db()->query('SELECT COUNT(*) FROM vips');
+    $countStatement = db()->query('SELECT COUNT(*) FROM vips WHERE is_approved = 1');
     $totalRows = (int) $countStatement->fetchColumn();
 
     $listStatement = db()->prepare(
@@ -58,6 +58,7 @@ try {
             is_approved,
             created_at
         FROM vips
+        WHERE is_approved = 1
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset'
     );
