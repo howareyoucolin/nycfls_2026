@@ -113,14 +113,128 @@ function is_public_ip(?string $ipAddress): bool
     return filter_var($ipAddress, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
 }
 
-function fetch_ip_lookup_location(?string $ipAddress): ?string
+function is_likely_proxy_ip(?string $ipAddress): bool
 {
-    try {
-        if (!is_public_ip($ipAddress)) {
-            return null;
+    if ($ipAddress === null || $ipAddress === '') {
+        return false;
+    }
+
+    $proxyCidrs = [
+        '104.16.0.0/13',
+        '104.24.0.0/14',
+        '108.162.192.0/18',
+        '131.0.72.0/22',
+        '141.101.64.0/18',
+        '162.158.0.0/15',
+        '172.64.0.0/13',
+        '173.245.48.0/20',
+        '188.114.96.0/20',
+        '190.93.240.0/20',
+        '197.234.240.0/22',
+        '198.41.128.0/17',
+    ];
+
+    foreach ($proxyCidrs as $cidr) {
+        if (ip_in_cidr($ipAddress, $cidr)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function ip_in_cidr(string $ipAddress, string $cidr): bool
+{
+    [$subnet, $maskBits] = explode('/', $cidr, 2);
+    $ipLong = ip2long($ipAddress);
+    $subnetLong = ip2long($subnet);
+
+    if ($ipLong === false || $subnetLong === false) {
+        return false;
+    }
+
+    $mask = -1 << (32 - (int) $maskBits);
+    $subnetLong &= $mask;
+
+    return ($ipLong & $mask) === $subnetLong;
+}
+
+function collect_client_ip_candidates(): array
+{
+    $candidates = [];
+
+    $headerCandidates = [
+        $_SERVER['HTTP_CF_CONNECTING_IP'] ?? null,
+        $_SERVER['HTTP_X_REAL_IP'] ?? null,
+        $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null,
+        $_SERVER['REMOTE_ADDR'] ?? null,
+    ];
+
+    foreach ($headerCandidates as $headerValue) {
+        if (!is_string($headerValue) || trim($headerValue) === '') {
+            continue;
         }
 
-        $lookupUrl = 'https://api.ipwho.org/ip/' . rawurlencode($ipAddress) . '?get=country,region,city';
+        foreach (explode(',', $headerValue) as $ipPart) {
+            $ip = trim($ipPart);
+            if ($ip !== '') {
+                $candidates[] = $ip;
+            }
+        }
+    }
+
+    return array_values(array_unique($candidates));
+}
+
+function resolve_client_ip(): ?string
+{
+    $candidates = collect_client_ip_candidates();
+
+    foreach ($candidates as $candidateIp) {
+        if (is_public_ip($candidateIp) && !is_likely_proxy_ip($candidateIp)) {
+            return $candidateIp;
+        }
+    }
+
+    foreach ($candidates as $candidateIp) {
+        if (is_public_ip($candidateIp)) {
+            return $candidateIp;
+        }
+    }
+
+    foreach ($candidates as $candidateIp) {
+        if (filter_var($candidateIp, FILTER_VALIDATE_IP) !== false && !is_likely_proxy_ip($candidateIp)) {
+            return $candidateIp;
+        }
+    }
+
+    return null;
+}
+
+function http_json_request(string $url): ?array
+{
+    try {
+        if (function_exists('curl_init')) {
+            $curlHandle = curl_init($url);
+            curl_setopt_array($curlHandle, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 3,
+                CURLOPT_CONNECTTIMEOUT => 3,
+                CURLOPT_HTTPHEADER => ['Accept: application/json'],
+                CURLOPT_FOLLOWLOCATION => true,
+            ]);
+            $responseBody = curl_exec($curlHandle);
+            $httpCode = (int) curl_getinfo($curlHandle, CURLINFO_RESPONSE_CODE);
+            curl_close($curlHandle);
+
+            if (!is_string($responseBody) || $responseBody === '' || $httpCode >= 400) {
+                return null;
+            }
+
+            $decoded = json_decode($responseBody, true);
+            return is_array($decoded) ? $decoded : null;
+        }
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
@@ -130,7 +244,7 @@ function fetch_ip_lookup_location(?string $ipAddress): ?string
             ],
         ]);
 
-        $responseBody = @file_get_contents($lookupUrl, false, $context);
+        $responseBody = @file_get_contents($url, false, $context);
         if ($responseBody === false || $responseBody === '') {
             return null;
         }
@@ -140,21 +254,119 @@ function fetch_ip_lookup_location(?string $ipAddress): ?string
             return null;
         }
 
-        $payload = isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : $decoded;
-        $parts = array_filter([
-            trim((string) ($payload['city'] ?? '')),
-            trim((string) ($payload['region'] ?? '')),
-            trim((string) ($payload['country'] ?? '')),
-        ]);
-
-        if ($parts === []) {
-            return null;
-        }
-
-        return implode(', ', $parts);
+        return $decoded;
     } catch (Throwable $exception) {
         return null;
     }
+}
+
+function collect_edge_location_hint(): array
+{
+    $parts = array_filter([
+        trim((string) ($_SERVER['HTTP_CF_IPCITY'] ?? '')),
+        trim((string) ($_SERVER['HTTP_CF_IPREGION'] ?? '')),
+        trim((string) ($_SERVER['HTTP_CF_IPCOUNTRY'] ?? '')),
+        trim((string) ($_SERVER['HTTP_CLOUDFRONT_VIEWER_CITY'] ?? '')),
+        trim((string) ($_SERVER['HTTP_CLOUDFRONT_VIEWER_COUNTRY_REGION_NAME'] ?? '')),
+        trim((string) ($_SERVER['HTTP_CLOUDFRONT_VIEWER_COUNTRY_NAME'] ?? '')),
+    ]);
+
+    $normalizedParts = [];
+    foreach ($parts as $part) {
+        if (!in_array($part, $normalizedParts, true)) {
+            $normalizedParts[] = $part;
+        }
+    }
+
+    if ($normalizedParts === []) {
+        return [
+            'location' => null,
+            'source' => null,
+        ];
+    }
+
+    return [
+        'location' => implode(', ', $normalizedParts),
+        'source' => 'edge_headers',
+    ];
+}
+
+function fetch_ip_lookup_location_for_ip(string $ipAddress): array
+{
+    if (!is_public_ip($ipAddress)) {
+        return [
+            'location' => null,
+            'source' => null,
+        ];
+    }
+
+    $providers = [
+        'ipwho' => 'https://ipwho.org/ip/' . rawurlencode($ipAddress),
+        'freeipapi' => 'https://free.freeipapi.com/api/json/' . rawurlencode($ipAddress),
+        'ipapi' => 'https://ipapi.co/' . rawurlencode($ipAddress) . '/json/',
+    ];
+
+    foreach ($providers as $source => $lookupUrl) {
+        $decoded = http_json_request($lookupUrl);
+        if (!is_array($decoded)) {
+            continue;
+        }
+
+        $parts = [];
+
+        if ($source === 'ipwho') {
+            $parts = array_filter([
+                trim((string) ($decoded['city'] ?? '')),
+                trim((string) ($decoded['region'] ?? '')),
+                trim((string) ($decoded['country'] ?? '')),
+            ]);
+        }
+
+        if ($source === 'freeipapi') {
+            $firstRow = isset($decoded[0]) && is_array($decoded[0]) ? $decoded[0] : $decoded;
+            $parts = array_filter([
+                trim((string) ($firstRow['cityName'] ?? '')),
+                trim((string) ($firstRow['regionName'] ?? '')),
+                trim((string) ($firstRow['countryName'] ?? '')),
+            ]);
+        }
+
+        if ($source === 'ipapi') {
+            $parts = array_filter([
+                trim((string) ($decoded['city'] ?? '')),
+                trim((string) ($decoded['region'] ?? '')),
+                trim((string) ($decoded['country_name'] ?? '')),
+            ]);
+        }
+
+        if ($parts !== []) {
+            return [
+                'location' => implode(', ', $parts),
+                'source' => $source . ':' . $ipAddress,
+            ];
+        }
+    }
+
+    return [
+        'location' => null,
+        'source' => null,
+    ];
+}
+
+function resolve_ip_lookup_location(array $ipCandidates): array
+{
+    foreach ($ipCandidates as $candidateIp) {
+        if (is_likely_proxy_ip($candidateIp)) {
+            continue;
+        }
+
+        $lookupResult = fetch_ip_lookup_location_for_ip($candidateIp);
+        if (!empty($lookupResult['location'])) {
+            return $lookupResult;
+        }
+    }
+
+    return collect_edge_location_hint();
 }
 
 function collect_vip_meta(?int $vipId = null): array
@@ -162,27 +374,34 @@ function collect_vip_meta(?int $vipId = null): array
     $userAgent = trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
     [$browserName, $browserVersion] = detect_browser($userAgent);
     [$osName, $osVersion] = detect_os($userAgent);
-    $ipAddress = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+    $ipCandidates = collect_client_ip_candidates();
+    $ipAddress = resolve_client_ip();
+    $publicIpCandidates = array_values(array_filter($ipCandidates, static fn (string $ip): bool => is_public_ip($ip)));
+    $lookupReadyIpCandidates = array_values(array_filter(
+        $publicIpCandidates,
+        static fn (string $ip): bool => !is_likely_proxy_ip($ip)
+    ));
+    $lookupCandidates = $lookupReadyIpCandidates !== [] ? $lookupReadyIpCandidates : [];
+    $lookupResult = resolve_ip_lookup_location($lookupCandidates);
 
     return [
         'vip_id' => $vipId,
-        'request_method' => (string) ($_SERVER['REQUEST_METHOD'] ?? 'POST'),
-        'request_path' => (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH),
-        'query_string' => (string) ($_SERVER['QUERY_STRING'] ?? ''),
-        'ip_address' => $ipAddress,
+        'ip_address' => $ipAddress ?? '',
         'forwarded_for' => trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')),
         'user_agent' => $userAgent,
         'referer_url' => trim((string) ($_SERVER['HTTP_REFERER'] ?? '')),
-        'origin_url' => trim((string) ($_SERVER['HTTP_ORIGIN'] ?? '')),
-        'host_name' => trim((string) ($_SERVER['HTTP_HOST'] ?? '')),
-        'accept_language' => trim((string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '')),
         'browser_name' => $browserName,
         'browser_version' => $browserVersion,
         'os_name' => $osName,
         'os_version' => $osVersion,
         'device_type' => detect_device_type($userAgent),
-        'ip_lookup_location' => fetch_ip_lookup_location($ipAddress),
+        'ip_lookup_location' => $lookupResult['location'],
         'extra_payload' => json_encode([
+            'resolved_client_ip' => $ipAddress,
+            'client_ip_candidates' => $ipCandidates,
+            'public_ip_candidates' => $publicIpCandidates,
+            'lookup_ready_ip_candidates' => $lookupReadyIpCandidates,
+            'ip_lookup_source' => $lookupResult['source'],
             'request_scheme' => $_SERVER['REQUEST_SCHEME'] ?? null,
             'server_name' => $_SERVER['SERVER_NAME'] ?? null,
             'server_port' => $_SERVER['SERVER_PORT'] ?? null,
@@ -195,16 +414,10 @@ function store_vip_meta(PDO $pdo, array $meta): void
     $statement = $pdo->prepare(
         'INSERT INTO vip_meta (
             vip_id,
-            request_method,
-            request_path,
-            query_string,
             ip_address,
             forwarded_for,
             user_agent,
             referer_url,
-            origin_url,
-            host_name,
-            accept_language,
             browser_name,
             browser_version,
             os_name,
@@ -214,16 +427,10 @@ function store_vip_meta(PDO $pdo, array $meta): void
             extra_payload
         ) VALUES (
             :vip_id,
-            :request_method,
-            :request_path,
-            :query_string,
             :ip_address,
             :forwarded_for,
             :user_agent,
             :referer_url,
-            :origin_url,
-            :host_name,
-            :accept_language,
             :browser_name,
             :browser_version,
             :os_name,
@@ -236,16 +443,10 @@ function store_vip_meta(PDO $pdo, array $meta): void
 
     $statement->execute([
         ':vip_id' => $meta['vip_id'],
-        ':request_method' => $meta['request_method'],
-        ':request_path' => $meta['request_path'],
-        ':query_string' => $meta['query_string'] !== '' ? $meta['query_string'] : null,
         ':ip_address' => $meta['ip_address'] !== '' ? $meta['ip_address'] : null,
         ':forwarded_for' => $meta['forwarded_for'] !== '' ? $meta['forwarded_for'] : null,
         ':user_agent' => $meta['user_agent'] !== '' ? $meta['user_agent'] : null,
         ':referer_url' => $meta['referer_url'] !== '' ? $meta['referer_url'] : null,
-        ':origin_url' => $meta['origin_url'] !== '' ? $meta['origin_url'] : null,
-        ':host_name' => $meta['host_name'] !== '' ? $meta['host_name'] : null,
-        ':accept_language' => $meta['accept_language'] !== '' ? $meta['accept_language'] : null,
         ':browser_name' => $meta['browser_name'],
         ':browser_version' => $meta['browser_version'],
         ':os_name' => $meta['os_name'],
