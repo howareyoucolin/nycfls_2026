@@ -15,6 +15,11 @@ $pagesDirectory = __DIR__ . '/pages';
 $normalizedPath = $uri === '' ? 'home' : $uri;
 $segments = array_values(array_filter(explode('/', $normalizedPath), static fn (string $segment): bool => $segment !== ''));
 
+$normalizedUri = $uri === '' ? '/' : '/' . $uri;
+if ($normalizedUri === '/form' || $normalizedUri === '/vip' || str_starts_with($normalizedUri, '/vip/')) {
+    header('X-Robots-Tag: noindex, nofollow', true);
+}
+
 $safeSegments = [];
 foreach ($segments as $segment) {
     if (!preg_match('/^[A-Za-z0-9_-]+$/', $segment) || str_starts_with($segment, '_')) {
