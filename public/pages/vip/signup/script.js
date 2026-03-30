@@ -2,8 +2,10 @@ const form = document.querySelector('[data-multistep-form]');
 
 if (form) {
   const isDebugMode = new URLSearchParams(window.location.search).has('debug');
+  const page = document.querySelector('.page');
   const panels = Array.from(form.querySelectorAll('[data-step-panel]'));
   const indicators = Array.from(document.querySelectorAll('[data-step-indicator]'));
+  const vipNav = document.querySelector('[data-vip-nav]');
   const pageIntro = document.querySelector('[data-page-intro]');
   const stepperShell = document.querySelector('.stepper-shell');
   const prevButton = form.querySelector('[data-step-action="prev"]');
@@ -277,6 +279,18 @@ if (form) {
     submitFeedback.hidden = message === '';
   };
 
+  const showSuccessScreen = () => {
+    form.hidden = true;
+    if (vipNav) {
+      vipNav.hidden = true;
+    }
+    pageIntro.hidden = true;
+    stepperShell.hidden = true;
+    page?.classList.add('is-success');
+    successScreen.hidden = false;
+    launchConfetti();
+  };
+
   const setSubmittingState = (submitting) => {
     isSubmitting = submitting;
     prevButton.disabled = submitting;
@@ -342,11 +356,7 @@ if (form) {
 
       window.setTimeout(() => {
         loadingScreen.hidden = true;
-        form.hidden = true;
-        pageIntro.hidden = true;
-        stepperShell.hidden = true;
-        successScreen.hidden = false;
-        launchConfetti();
+        showSuccessScreen();
         setSubmittingState(false);
       }, 5000);
 
@@ -373,12 +383,8 @@ if (form) {
           throw new Error(result.message || '提交失败，请稍后再试。');
         }
 
-        form.hidden = true;
-        pageIntro.hidden = true;
-        stepperShell.hidden = true;
         loadingScreen.hidden = true;
-        successScreen.hidden = false;
-        launchConfetti();
+        showSuccessScreen();
       })
       .catch((error) => {
         loadingScreen.hidden = true;

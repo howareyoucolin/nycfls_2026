@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>匿名资料填写</title>
+  <title>群成员资料填写</title>
   <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="/pages/vip/_templates/nav.css">
   <link rel="stylesheet" href="/pages/vip/signup/style.css">
 </head>
 <body>
   <main class="page">
+    <?php require dirname(__DIR__) . '/_templates/nav.php'; ?>
     <div class="page-intro" data-page-intro>
-      <h1>匿名资料填写</h1>
+      <p class="eyebrow">VIP SIGNUP</p>
+      <h1>群成员资料填写</h1>
       <p class="intro">整个填写流程不到 1 分钟，请按步骤完成填写，每一步完成后即可进入下一步。</p>
     </div>
 
@@ -70,9 +73,9 @@
             <select id="location" name="location" required>
               <option value="" selected>请选择</option>
               <option value="皇后区法拉盛">皇后区法拉盛</option>
-              <option value="皇后区贝赛">皇后区Bayside</option>
-              <option value="皇后区艾姆赫斯特">皇后区Elmhurst</option>
-              <option value="皇后区长岛市">皇后区LIC</option>
+              <option value="皇后区Bayside">皇后区Bayside</option>
+              <option value="皇后区Elmhurst">皇后区Elmhurst</option>
+              <option value="皇后区LIC">皇后区LIC</option>
               <option value="布鲁克林">布鲁克林</option>
               <option value="曼哈顿">曼哈顿</option>
               <option value="皇后区">皇后区</option>
@@ -202,9 +205,9 @@
       <div class="success-confetti" data-confetti aria-hidden="true"></div>
       <div class="success-card">
         <div class="success-check">✓</div>
-        <p class="success-kicker">提交完成</p>
         <h2>提交成功！</h2>
-        <p class="success-copy">感谢你的填写，你的资料已经成功提交。</p>
+        <p class="success-copy">感谢你的填写，你的资料已经成功提交。我们会尽快审核你的申请，并在完成后尽快与你联系。</p>
+        <a class="success-link" href="/vip">查看全部群成员</a>
       </div>
     </section>
   </main>
