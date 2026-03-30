@@ -176,7 +176,7 @@ if ($normalizedContactType === 'qrcode' && !empty($_FILES['contact_qrcode']['nam
         if ($sourceImage instanceof GdImage) {
             $sourceWidth = imagesx($sourceImage);
             $sourceHeight = imagesy($sourceImage);
-            $maxDimension = 360;
+            $maxDimension = 480;
             $scale = min(1, $maxDimension / max($sourceWidth, $sourceHeight));
             $targetWidth = max(1, (int) round($sourceWidth * $scale));
             $targetHeight = max(1, (int) round($sourceHeight * $scale));

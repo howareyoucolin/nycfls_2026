@@ -118,10 +118,9 @@
             用几句话介绍一下你自己
             <span class="field-subnote">你的爱好与兴趣、擅长的事情、工作或专业、性格特点、生活方式、价值观、个人目标、未来规划等</span>
             <textarea id="intro_text" name="intro_text" placeholder="简单介绍一下你自己" required minlength="40" maxlength="2000" aria-describedby="intro_hint intro_error"></textarea>
+            <p class="counter-text" data-intro-count>当前 0 / 40</p>
           </label>
-          <p class="hint" id="intro_hint">最少填写 40 个字。</p>
           <p class="error-text" id="intro_error" data-intro-error hidden>自我介绍至少需要填写 40 个字。</p>
-          <p class="counter-text" data-intro-count>当前 0 / 40</p>
         </div>
       </section>
 
