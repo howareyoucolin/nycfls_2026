@@ -9,10 +9,10 @@ function db(): PDO
         return $pdo;
     }
 
-    $host = defined('DB_HOST') ? DB_HOST : 'localhost';
-    $database = defined('DB_NAME') ? DB_NAME : '';
-    $username = defined('DB_USERNAME') ? DB_USERNAME : '';
-    $password = defined('DB_PASSWORD') ? DB_PASSWORD : '';
+    $host = getenv('DB_HOST') ?: (defined('DB_HOST') ? DB_HOST : 'localhost');
+    $database = getenv('DB_NAME') ?: (defined('DB_NAME') ? DB_NAME : '');
+    $username = getenv('DB_USERNAME') ?: (defined('DB_USERNAME') ? DB_USERNAME : '');
+    $password = getenv('DB_PASSWORD') ?: (defined('DB_PASSWORD') ? DB_PASSWORD : '');
 
     $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $host, $database);
 

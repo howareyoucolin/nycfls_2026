@@ -360,6 +360,17 @@ textarea {
   padding-top: 6px;
 }
 
+.submit-feedback[hidden] {
+  display: none;
+}
+
+.submit-feedback {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b42318;
+}
+
 .primary-button,
 .ghost-button {
   width: 100%;

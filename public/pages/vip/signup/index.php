@@ -30,7 +30,7 @@
       </ol>
     </div>
 
-    <form method="post" novalidate data-multistep-form>
+    <form method="post" action="/actions/vip-signup-submit.php" enctype="multipart/form-data" novalidate data-multistep-form>
       <section class="section step-panel is-active" data-step-panel="1">
         <p class="section-title">步骤 1 / 基本信息</p>
         <div class="fields">
@@ -188,6 +188,7 @@
         <button type="button" class="primary-button" data-step-action="next">下一步</button>
         <button type="submit" class="primary-button" data-step-action="submit" hidden>提交</button>
       </div>
+      <p class="submit-feedback" data-submit-feedback hidden></p>
     </form>
 
     <section class="success-screen" data-success-screen hidden>

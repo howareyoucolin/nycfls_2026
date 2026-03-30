@@ -9,6 +9,7 @@ if (form) {
   const prevButton = form.querySelector('[data-step-action="prev"]');
   const nextButton = form.querySelector('[data-step-action="next"]');
   const submitButton = form.querySelector('[data-step-action="submit"]');
+  const submitFeedback = form.querySelector('[data-submit-feedback]');
   const successScreen = document.querySelector('[data-success-screen]');
   const confettiRoot = document.querySelector('[data-confetti]');
   const introField = form.querySelector('#intro_text');
@@ -256,6 +257,11 @@ if (form) {
     }
   };
 
+  const setSubmitFeedback = (message = '') => {
+    submitFeedback.textContent = message;
+    submitFeedback.hidden = message === '';
+  };
+
   prevButton.addEventListener('click', () => {
     currentStep = Math.max(1, currentStep - 1);
     updateStepUI();
@@ -266,6 +272,7 @@ if (form) {
       return;
     }
 
+    setSubmitFeedback('');
     currentStep = Math.min(panels.length, currentStep + 1);
     updateStepUI();
   });
@@ -292,11 +299,47 @@ if (form) {
     }
 
     event.preventDefault();
-    form.hidden = true;
-    pageIntro.hidden = true;
-    stepperShell.hidden = true;
-    successScreen.hidden = false;
-    launchConfetti();
+
+    if (isDebugMode) {
+      form.hidden = true;
+      pageIntro.hidden = true;
+      stepperShell.hidden = true;
+      successScreen.hidden = false;
+      launchConfetti();
+      return;
+    }
+
+    const submitUrl = isDebugMode ? `${form.action}?debug` : form.action;
+    const formData = new FormData(form);
+    setSubmitFeedback('');
+    submitButton.disabled = true;
+
+    fetch(submitUrl, {
+      method: 'POST',
+      body: formData,
+    })
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({
+          ok: false,
+          message: '提交失败，请稍后再试。',
+        }));
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.message || '提交失败，请稍后再试。');
+        }
+
+        form.hidden = true;
+        pageIntro.hidden = true;
+        stepperShell.hidden = true;
+        successScreen.hidden = false;
+        launchConfetti();
+      })
+      .catch((error) => {
+        setSubmitFeedback(error.message || '提交失败，请稍后再试。');
+      })
+      .finally(() => {
+        submitButton.disabled = false;
+      });
   });
 
   updateIntroState();
