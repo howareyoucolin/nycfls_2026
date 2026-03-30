@@ -336,11 +336,20 @@ if (form) {
     event.preventDefault();
 
     if (isDebugMode) {
-      form.hidden = true;
-      pageIntro.hidden = true;
-      stepperShell.hidden = true;
-      successScreen.hidden = false;
-      launchConfetti();
+      setSubmitFeedback('');
+      setSubmittingState(true);
+      loadingScreen.hidden = false;
+
+      window.setTimeout(() => {
+        loadingScreen.hidden = true;
+        form.hidden = true;
+        pageIntro.hidden = true;
+        stepperShell.hidden = true;
+        successScreen.hidden = false;
+        launchConfetti();
+        setSubmittingState(false);
+      }, 5000);
+
       return;
     }
 
