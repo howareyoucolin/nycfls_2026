@@ -37,6 +37,17 @@ $candidateFiles = [
     $pagesDirectory . '/' . $routePath . '/index.php',
 ];
 
+if (
+    count($safeSegments) === 4
+    && $safeSegments[0] === 'vip'
+    && $safeSegments[1] === 'admin'
+    && $safeSegments[2] === 'vip'
+    && preg_match('/^[0-9]+$/', $safeSegments[3])
+) {
+    $_GET['id'] = $safeSegments[3];
+    $candidateFiles[] = $pagesDirectory . '/vip/admin/vip/index.php';
+}
+
 $pageFile = null;
 foreach ($candidateFiles as $candidateFile) {
     if (is_file($candidateFile)) {

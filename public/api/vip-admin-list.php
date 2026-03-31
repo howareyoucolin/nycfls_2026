@@ -17,6 +17,16 @@ if (!in_array($status, $allowedStatuses, true)) {
 
 $search = trim((string) ($_GET['search'] ?? ''));
 $searchTerm = $search !== '' ? '%' . $search . '%' : null;
+$perPage = (int) ($_GET['per_page'] ?? 50);
+if ($perPage <= 0) {
+    $perPage = 50;
+}
+$perPage = min($perPage, 100);
+
+$page = (int) ($_GET['page'] ?? 1);
+if ($page <= 0) {
+    $page = 1;
+}
 
 $whereParts = [];
 $params = [];
@@ -36,6 +46,19 @@ $whereSql = $whereParts !== [] ? ('WHERE ' . implode(' AND ', $whereParts)) : ''
 
 try {
     $pdo = db();
+    $countSql = 'SELECT COUNT(*) FROM vips v ' . $whereSql;
+    $countStatement = $pdo->prepare($countSql);
+    foreach ($params as $key => $value) {
+        $countStatement->bindValue($key, $value);
+    }
+    $countStatement->execute();
+    $filteredTotal = (int) $countStatement->fetchColumn();
+
+    $totalPages = max(1, (int) ceil($filteredTotal / $perPage));
+    if ($page > $totalPages) {
+        $page = $totalPages;
+    }
+    $offset = ($page - 1) * $perPage;
 
     $listSql = '
         SELECT
@@ -74,12 +97,14 @@ try {
         ) vm ON vm.vip_id = v.id
         ' . $whereSql . '
         ORDER BY v.created_at DESC, v.id DESC
-        LIMIT 500';
+        LIMIT :limit OFFSET :offset';
 
     $statement = $pdo->prepare($listSql);
     foreach ($params as $key => $value) {
         $statement->bindValue($key, $value);
     }
+    $statement->bindValue(':limit', $perPage, PDO::PARAM_INT);
+    $statement->bindValue(':offset', $offset, PDO::PARAM_INT);
     $statement->execute();
     $items = $statement->fetchAll();
 
@@ -95,6 +120,14 @@ try {
         'filters' => [
             'status' => $status,
             'search' => $search,
+            'page' => $page,
+            'per_page' => $perPage,
+        ],
+        'pagination' => [
+            'page' => $page,
+            'per_page' => $perPage,
+            'total_items' => $filteredTotal,
+            'total_pages' => $totalPages,
         ],
         'viewer' => [
             'user_id' => (string) ($claims['sub'] ?? ''),

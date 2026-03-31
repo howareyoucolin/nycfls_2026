@@ -1,5 +1,5 @@
 (function () {
-  const app = document.querySelector('[data-vip-admin-app]');
+  const app = document.querySelector('[data-vip-admin-vips]');
 
   if (!app) {
     return;
@@ -9,8 +9,13 @@
     clerk: null,
     token: null,
     items: [],
-    selectedId: null,
     counts: { all: 0, pending: 0, approved: 0 },
+    status: 'pending',
+    page: 1,
+    perPage: 50,
+    totalItems: 0,
+    totalPages: 1,
+    pendingRequests: 0,
   };
 
   const els = {
@@ -18,38 +23,33 @@
     drawerToggle: app.querySelector('[data-admin-drawer-toggle]'),
     drawerClose: app.querySelector('[data-admin-drawer-close]'),
     drawerBackdrop: app.querySelector('[data-admin-drawer-backdrop]'),
+    loadingOverlay: app.querySelector('[data-admin-loading-overlay]'),
+    loadingReason: app.querySelector('[data-admin-loading-reason]'),
     forbiddenState: app.querySelector('[data-forbidden-state]'),
     dashboard: app.querySelector('[data-dashboard]'),
     forbiddenMessage: app.querySelector('[data-forbidden-message]'),
     search: app.querySelector('[data-admin-search]'),
-    status: app.querySelector('[data-admin-status]'),
     counts: app.querySelector('[data-admin-counts]'),
     list: app.querySelector('[data-signup-list]'),
+    paginationTop: app.querySelector('[data-pagination-top]'),
+    pagination: app.querySelector('[data-pagination]'),
     listFeedback: app.querySelector('[data-list-feedback]'),
     refreshButton: app.querySelector('[data-admin-refresh]'),
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
-    form: app.querySelector('[data-admin-form]'),
-    saveButton: app.querySelector('[data-admin-save]'),
-    title: app.querySelector('[data-editor-title]'),
-    feedback: app.querySelector('[data-form-feedback]'),
-    approveToggle: app.querySelector('[data-admin-approve-toggle]'),
-    qrcodePreviewCard: app.querySelector('[data-qrcode-preview-card]'),
-    qrcodePreviewImage: app.querySelector('[data-qrcode-preview-image]'),
-    contactInfoField: app.querySelector('[data-contact-info-field]'),
-    qrcodePathField: app.querySelector('[data-qrcode-path-field]'),
-    metaCreated: app.querySelector('[data-meta-created]'),
-    metaUpdated: app.querySelector('[data-meta-updated]'),
-    metaApprovedBy: app.querySelector('[data-meta-approved-by]'),
-    metaApprovedAt: app.querySelector('[data-meta-approved-at]'),
-    metaIpLocation: app.querySelector('[data-meta-ip-location]'),
-    metaDevice: app.querySelector('[data-meta-device]'),
   };
 
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   const loginRoute = '/vip/admin/login';
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialPage = Number(initialParams.get('page') || '1');
+  const defaultStatus = 'pending';
+
+  if (Number.isFinite(initialPage) && initialPage > 0) {
+    state.page = Math.floor(initialPage);
+  }
 
   function setDrawerOpen(isOpen) {
     const shouldOpen = Boolean(isOpen) && mobileDrawerQuery.matches;
@@ -78,14 +78,34 @@
     }
   }
 
-  function setFormFeedback(message, isError) {
-    els.feedback.textContent = message || '';
-    els.feedback.style.color = isError ? '#ffc0b2' : 'rgba(238, 235, 228, 0.78)';
+  function setLoading(isLoading, reason) {
+    if (!els.loadingOverlay) {
+      return;
+    }
+
+    els.loadingOverlay.classList.toggle('is-hidden', !isLoading);
+    els.loadingOverlay.setAttribute('aria-hidden', isLoading ? 'false' : 'true');
+    if (els.loadingReason) {
+      els.loadingReason.textContent = reason || '正在处理中...';
+    }
+    document.body.classList.toggle('admin-loading', isLoading);
+  }
+
+  function startLoading(reason) {
+    state.pendingRequests += 1;
+    setLoading(true, reason);
+  }
+
+  function stopLoading() {
+    state.pendingRequests = Math.max(0, state.pendingRequests - 1);
+    if (state.pendingRequests === 0) {
+      setLoading(false, '');
+    }
   }
 
   function setListFeedback(message, isError) {
     els.listFeedback.textContent = message || '';
-    els.listFeedback.style.color = isError ? '#ffc0b2' : 'rgba(238, 235, 228, 0.78)';
+    els.listFeedback.style.color = isError ? '#ffc0b2' : '#6c5b4d';
   }
 
   function buildForbiddenMessage(error) {
@@ -107,11 +127,7 @@
       details.push(`Clerk user_id: ${payload.user_id}`);
     }
 
-    if (!details.length) {
-      details.push('Backend token did not expose an email claim.');
-    }
-
-    return `${baseMessage}\n${details.join('\n')}`;
+    return details.length ? `${baseMessage}\n${details.join('\n')}` : baseMessage;
   }
 
   function formatDateTime(value) {
@@ -144,46 +160,152 @@
       .replaceAll("'", '&#039;');
   }
 
-  function selectedItem() {
-    return state.items.find((item) => Number(item.id) === Number(state.selectedId)) || null;
+  function updateCounts() {
+    const currentStatus = state.status || defaultStatus;
+    const chips = [
+      { value: 'all', label: '全部', count: state.counts.all || 0 },
+      { value: 'pending', label: '待审核', count: state.counts.pending || 0 },
+      { value: 'approved', label: '已审核', count: state.counts.approved || 0 },
+    ];
+
+    els.counts.innerHTML = chips.map((chip) => `
+      <button
+        type="button"
+        class="count-filter-chip ${chip.value === currentStatus ? 'is-active' : ''}"
+        data-status-chip="${escapeHtml(chip.value)}"
+        aria-pressed="${chip.value === currentStatus ? 'true' : 'false'}"
+      >
+        ${escapeHtml(chip.label)} ${chip.count}
+      </button>
+    `).join('');
   }
 
-  function setEditorEnabled(enabled) {
-    const controls = els.form.querySelectorAll('input, select, textarea, button');
-    controls.forEach((control) => {
-      if (control === els.saveButton) {
-        control.disabled = !enabled;
-        return;
+  function syncUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const searchValue = els.search.value.trim();
+    const statusValue = state.status || defaultStatus;
+
+    if (searchValue) {
+      params.set('search', searchValue);
+    } else {
+      params.delete('search');
+    }
+
+    if (statusValue && statusValue !== 'all') {
+      params.set('status', statusValue);
+    } else {
+      params.delete('status');
+    }
+
+    if (state.page > 1) {
+      params.set('page', String(state.page));
+    } else {
+      params.delete('page');
+    }
+
+    const query = params.toString();
+    const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    window.history.replaceState({}, '', nextUrl);
+  }
+
+  function renderPagination() {
+    const paginationNodes = [els.paginationTop, els.pagination].filter(Boolean);
+
+    if (!paginationNodes.length) {
+      return;
+    }
+
+    if (state.totalItems <= 0) {
+      paginationNodes.forEach((node) => {
+        node.innerHTML = '';
+      });
+      return;
+    }
+
+    const paginationItems = [];
+
+    if (state.totalPages <= 7) {
+      for (let pageNumber = 1; pageNumber <= state.totalPages; pageNumber += 1) {
+        paginationItems.push(pageNumber);
+      }
+    } else {
+      paginationItems.push(1);
+
+      if (state.page > 3) {
+        paginationItems.push('ellipsis-left');
       }
 
-      control.disabled = !enabled;
-    });
-  }
+      const windowStart = Math.max(2, state.page - 1);
+      const windowEnd = Math.min(state.totalPages - 1, state.page + 1);
 
-  function updateCounts() {
-    els.counts.innerHTML = [
-      `全部 ${state.counts.all || 0}`,
-      `待审核 ${state.counts.pending || 0}`,
-      `已审核 ${state.counts.approved || 0}`,
-    ].map((text) => `<span>${escapeHtml(text)}</span>`).join('');
+      for (let pageNumber = windowStart; pageNumber <= windowEnd; pageNumber += 1) {
+        paginationItems.push(pageNumber);
+      }
+
+      if (state.page < state.totalPages - 2) {
+        paginationItems.push('ellipsis-right');
+      }
+
+      paginationItems.push(state.totalPages);
+    }
+
+    const markup = `
+      <button
+        type="button"
+        class="page-arrow ${state.page <= 1 ? 'is-disabled' : ''}"
+        data-page-target="${Math.max(1, state.page - 1)}"
+        aria-label="上一页"
+        ${state.page <= 1 ? 'disabled' : ''}
+      >‹</button>
+      <div class="page-numbers">
+        ${paginationItems.map((item) => {
+          if (typeof item !== 'number') {
+            return '<span class="page-ellipsis">…</span>';
+          }
+
+          if (item === state.page) {
+            return `<span class="page-number is-current">${item}</span>`;
+          }
+
+          return `
+            <button
+              type="button"
+              class="page-number"
+              data-page-target="${item}"
+            >${item}</button>
+          `;
+        }).join('')}
+      </div>
+      <button
+        type="button"
+        class="page-arrow ${state.page >= state.totalPages ? 'is-disabled' : ''}"
+        data-page-target="${Math.min(state.totalPages, state.page + 1)}"
+        aria-label="下一页"
+        ${state.page >= state.totalPages ? 'disabled' : ''}
+      >›</button>
+    `;
+
+    paginationNodes.forEach((node) => {
+      node.innerHTML = markup;
+    });
   }
 
   function renderList() {
     if (!state.items.length) {
       els.list.innerHTML = '';
+      renderPagination();
       setListFeedback('当前筛选条件下没有数据。', false);
       return;
     }
 
     setListFeedback('', false);
     els.list.innerHTML = state.items.map((item) => {
-      const isActive = Number(item.id) === Number(state.selectedId);
       const statusClass = Number(item.is_approved) === 1 ? 'is-approved' : 'is-pending';
       const statusLabel = Number(item.is_approved) === 1 ? '已审核' : '待审核';
       const meta = [item.generation ? `${item.generation}后` : '', item.location || ''].filter(Boolean).join(' · ');
 
       return `
-        <button type="button" class="signup-item ${isActive ? 'is-active' : ''}" data-item-id="${Number(item.id)}">
+        <a class="signup-item signup-item-link" href="/vip/admin/vip/${Number(item.id)}">
           <div class="signup-item-top">
             <div>
               <strong>${escapeHtml(item.nickname || `#${item.id}`)}</strong>
@@ -195,74 +317,14 @@
             <span>#${Number(item.id)}</span>
             <span>${escapeHtml(formatDateTime(item.created_at))}</span>
           </div>
-        </button>
+        </a>
       `;
     }).join('');
+    renderPagination();
   }
 
-  function renderForm() {
-    const item = selectedItem();
-
-    if (!item) {
-      els.title.textContent = '请选择一条报名资料';
-      els.form.reset();
-      setFormFeedback('', false);
-      setEditorEnabled(false);
-      els.contactInfoField.classList.remove('is-hidden');
-      els.qrcodePathField.classList.add('is-hidden');
-      els.qrcodePreviewCard.classList.add('is-hidden');
-      [
-        els.metaCreated,
-        els.metaUpdated,
-        els.metaApprovedBy,
-        els.metaApprovedAt,
-        els.metaIpLocation,
-        els.metaDevice,
-      ].forEach((node) => {
-        node.textContent = '--';
-      });
-      return;
-    }
-
-    els.title.textContent = `编辑 #${item.id} ${item.nickname || ''}`.trim();
-    els.form.elements.nickname.value = item.nickname || '';
-    els.form.elements.generation.value = item.generation || '80';
-    els.form.elements.gender.value = item.gender || 'm';
-    els.form.elements.location.value = item.location || '';
-    els.form.elements.join_reason.value = item.join_reason || '';
-    els.form.elements.contact_type.value = item.contact_type || '';
-    els.form.elements.contact_info.value = item.contact_info || '';
-    els.form.elements.contact_qrcode_path.value = item.contact_qrcode_path || '';
-    els.form.elements.intro_text.value = item.intro_text || '';
-    els.approveToggle.checked = Number(item.is_approved) === 1;
-
-    const isQrcode = item.contact_type === 'qrcode';
-    els.contactInfoField.classList.toggle('is-hidden', isQrcode);
-    els.qrcodePathField.classList.toggle('is-hidden', !isQrcode);
-
-    if (isQrcode && item.contact_qrcode_path) {
-      els.qrcodePreviewImage.src = `/${String(item.contact_qrcode_path).replace(/^\/+/, '')}`;
-      els.qrcodePreviewCard.classList.remove('is-hidden');
-    } else {
-      els.qrcodePreviewImage.src = '';
-      els.qrcodePreviewCard.classList.add('is-hidden');
-    }
-
-    els.metaCreated.textContent = formatDateTime(item.created_at);
-    els.metaUpdated.textContent = formatDateTime(item.updated_at);
-    els.metaApprovedBy.textContent = item.approved_by || '--';
-    els.metaApprovedAt.textContent = formatDateTime(item.approved_at);
-    els.metaIpLocation.textContent = item.ip_lookup_location || item.ip_address || '--';
-    els.metaDevice.textContent = [
-      item.device_type || '',
-      [item.browser_name, item.browser_version].filter(Boolean).join(' '),
-      [item.os_name, item.os_version].filter(Boolean).join(' '),
-    ].filter(Boolean).join(' · ') || '--';
-
-    setEditorEnabled(true);
-  }
-
-  async function apiFetch(path, options) {
+  async function apiFetch(path, options, reason) {
+    startLoading(reason);
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
 
@@ -270,47 +332,25 @@
       headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(path, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(path, {
+        ...options,
+        headers,
+      });
 
-    const data = await response.json().catch(() => null);
+      const data = await response.json().catch(() => null);
 
-    if (!response.ok) {
-      const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
-      error.status = response.status;
-      error.payload = data;
-      throw error;
+      if (!response.ok) {
+        const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
+        error.status = response.status;
+        error.payload = data;
+        throw error;
+      }
+
+      return data;
+    } finally {
+      stopLoading();
     }
-
-    return data;
-  }
-
-  async function checkWhitelist() {
-    const data = await apiFetch('/api/vip-admin-whitelist.php', { method: 'GET' });
-    return data && data.data ? data.data : {};
-  }
-
-  async function fetchItems() {
-    const query = new URLSearchParams({
-      status: els.status.value,
-      search: els.search.value.trim(),
-    });
-
-    setListFeedback('正在加载报名数据...', false);
-
-    const data = await apiFetch(`/api/vip-admin-list.php?${query.toString()}`, { method: 'GET' });
-    state.items = Array.isArray(data.data && data.data.items) ? data.data.items : [];
-    state.counts = data.data && data.data.counts ? data.data.counts : state.counts;
-    updateCounts();
-
-    if (!state.items.some((item) => Number(item.id) === Number(state.selectedId))) {
-      state.selectedId = state.items.length ? state.items[0].id : null;
-    }
-
-    renderList();
-    renderForm();
   }
 
   async function ensureToken() {
@@ -331,11 +371,38 @@
     state.token = token;
   }
 
+  async function checkWhitelist() {
+    const data = await apiFetch('/api/vip-admin-whitelist.php', { method: 'GET' }, '正在验证管理员权限...');
+    return data && data.data ? data.data : {};
+  }
+
+  async function fetchItems() {
+    const query = new URLSearchParams({
+      status: state.status || defaultStatus,
+      search: els.search.value.trim(),
+      page: String(state.page),
+      per_page: String(state.perPage),
+    });
+
+    setListFeedback('正在加载报名数据...', false);
+
+    const data = await apiFetch(`/api/vip-admin-list.php?${query.toString()}`, { method: 'GET' }, '正在获取报名数据...');
+    state.items = Array.isArray(data.data && data.data.items) ? data.data.items : [];
+    state.counts = data.data && data.data.counts ? data.data.counts : state.counts;
+    state.page = Number(data.data && data.data.pagination ? data.data.pagination.page : state.page) || 1;
+    state.perPage = Number(data.data && data.data.pagination ? data.data.pagination.per_page : state.perPage) || 50;
+    state.totalItems = Number(data.data && data.data.pagination ? data.data.pagination.total_items : 0) || 0;
+    state.totalPages = Number(data.data && data.data.pagination ? data.data.pagination.total_pages : 1) || 1;
+    syncUrl();
+    updateCounts();
+    renderList();
+  }
+
   async function refreshDashboard() {
     await ensureToken();
 
     try {
-      const access = await checkWhitelist();
+      await checkWhitelist();
       els.signoutButtons.forEach((button) => {
         button.hidden = false;
       });
@@ -429,49 +496,27 @@
 
     state.token = null;
     state.items = [];
-    state.selectedId = null;
     els.signoutButtons.forEach((button) => {
       button.hidden = true;
     });
-    renderList();
-    renderForm();
     window.location.href = loginRoute;
   }
 
-  els.list.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-item-id]');
-    if (!button) {
-      return;
-    }
-
-    state.selectedId = Number(button.getAttribute('data-item-id'));
-    renderList();
-    renderForm();
-    closeDrawer();
-  });
-
   if (els.drawerToggle) {
-    els.drawerToggle.addEventListener('click', () => {
-      toggleDrawer();
-    });
+    els.drawerToggle.addEventListener('click', toggleDrawer);
   }
 
   if (els.drawerClose) {
-    els.drawerClose.addEventListener('click', () => {
-      closeDrawer();
-    });
+    els.drawerClose.addEventListener('click', closeDrawer);
   }
 
   if (els.drawerBackdrop) {
-    els.drawerBackdrop.addEventListener('click', () => {
-      closeDrawer();
-    });
+    els.drawerBackdrop.addEventListener('click', closeDrawer);
   }
 
   if (els.drawer) {
     els.drawer.addEventListener('click', (event) => {
-      const navLink = event.target.closest('.admin-nav-link');
-      if (navLink) {
+      if (event.target.closest('.admin-nav-link')) {
         closeDrawer();
       }
     });
@@ -512,66 +557,65 @@
   els.search.addEventListener('input', () => {
     window.clearTimeout(els.search._debounceTimer);
     els.search._debounceTimer = window.setTimeout(() => {
+      state.page = 1;
       refreshDashboard().catch((error) => {
         setListFeedback(error.message || '搜索失败。', true);
       });
     }, 250);
   });
 
-  els.status.addEventListener('change', () => {
+  [els.paginationTop, els.pagination].filter(Boolean).forEach((paginationNode) => {
+    paginationNode.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-page-target]');
+      if (!button) {
+        return;
+      }
+
+      const targetPage = Number(button.getAttribute('data-page-target') || '0');
+      if (!Number.isFinite(targetPage) || targetPage <= 0 || targetPage === state.page) {
+        return;
+      }
+
+      state.page = targetPage;
+
+      refreshDashboard().catch((error) => {
+        setListFeedback(error.message || '翻页失败。', true);
+      });
+    });
+  });
+
+  if (initialParams.has('search')) {
+    els.search.value = initialParams.get('search') || '';
+  }
+
+  if (initialParams.has('status')) {
+    const initialStatus = initialParams.get('status') || defaultStatus;
+    if (['all', 'pending', 'approved'].includes(initialStatus)) {
+      state.status = initialStatus;
+    }
+  } else {
+    state.status = defaultStatus;
+  }
+
+  els.counts.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-status-chip]');
+    if (!button) {
+      return;
+    }
+
+    const nextStatus = button.getAttribute('data-status-chip') || defaultStatus;
+    if (state.status === nextStatus) {
+      return;
+    }
+
+    state.status = nextStatus;
+    state.page = 1;
+    updateCounts();
     refreshDashboard().catch((error) => {
       setListFeedback(error.message || '筛选失败。', true);
     });
   });
 
-  els.form.elements.contact_type.addEventListener('change', () => {
-    const isQrcode = els.form.elements.contact_type.value === 'qrcode';
-    els.contactInfoField.classList.toggle('is-hidden', isQrcode);
-    els.qrcodePathField.classList.toggle('is-hidden', !isQrcode);
-  });
-
-  els.form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-
-    const item = selectedItem();
-    if (!item) {
-      return;
-    }
-
-    const payload = {
-      id: item.id,
-      nickname: els.form.elements.nickname.value.trim(),
-      generation: els.form.elements.generation.value,
-      gender: els.form.elements.gender.value,
-      location: els.form.elements.location.value.trim(),
-      join_reason: els.form.elements.join_reason.value.trim(),
-      intro_text: els.form.elements.intro_text.value.trim(),
-      contact_type: els.form.elements.contact_type.value,
-      contact_info: els.form.elements.contact_info.value.trim(),
-      contact_qrcode_path: els.form.elements.contact_qrcode_path.value.trim(),
-      is_approved: els.approveToggle.checked,
-    };
-
-    els.saveButton.disabled = true;
-    setFormFeedback('正在保存修改...', false);
-
-    try {
-      await ensureToken();
-      await apiFetch('/api/vip-admin-update.php', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-
-      setFormFeedback('修改已保存。', false);
-      await fetchItems();
-    } catch (error) {
-      setFormFeedback(error.message || '保存失败。', true);
-    } finally {
-      els.saveButton.disabled = false;
-    }
-  });
-
-  renderForm();
   updateCounts();
   setView('dashboard');
 
@@ -586,5 +630,5 @@
     .catch((error) => {
       setView('forbidden');
       els.forbiddenMessage.textContent = error.message || 'Clerk 初始化失败。';
-  });
+    });
 })();

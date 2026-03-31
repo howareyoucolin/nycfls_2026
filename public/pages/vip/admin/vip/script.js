@@ -1,5 +1,5 @@
 (function () {
-  const app = document.querySelector('[data-vip-admin-app]');
+  const app = document.querySelector('[data-vip-admin-vip]');
 
   if (!app) {
     return;
@@ -8,9 +8,8 @@
   const state = {
     clerk: null,
     token: null,
-    items: [],
-    selectedId: null,
-    counts: { all: 0, pending: 0, approved: 0 },
+    item: null,
+    pendingRequests: 0,
   };
 
   const els = {
@@ -18,15 +17,12 @@
     drawerToggle: app.querySelector('[data-admin-drawer-toggle]'),
     drawerClose: app.querySelector('[data-admin-drawer-close]'),
     drawerBackdrop: app.querySelector('[data-admin-drawer-backdrop]'),
+    loadingOverlay: app.querySelector('[data-admin-loading-overlay]'),
+    loadingReason: app.querySelector('[data-admin-loading-reason]'),
     forbiddenState: app.querySelector('[data-forbidden-state]'),
     dashboard: app.querySelector('[data-dashboard]'),
+    forbiddenTitle: app.querySelector('[data-forbidden-title]'),
     forbiddenMessage: app.querySelector('[data-forbidden-message]'),
-    search: app.querySelector('[data-admin-search]'),
-    status: app.querySelector('[data-admin-status]'),
-    counts: app.querySelector('[data-admin-counts]'),
-    list: app.querySelector('[data-signup-list]'),
-    listFeedback: app.querySelector('[data-list-feedback]'),
-    refreshButton: app.querySelector('[data-admin-refresh]'),
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
     form: app.querySelector('[data-admin-form]'),
@@ -46,6 +42,7 @@
     metaDevice: app.querySelector('[data-meta-device]'),
   };
 
+  const vipId = Number(app.dataset.adminVipId || 0);
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   const loginRoute = '/vip/admin/login';
@@ -78,14 +75,34 @@
     }
   }
 
-  function setFormFeedback(message, isError) {
-    els.feedback.textContent = message || '';
-    els.feedback.style.color = isError ? '#ffc0b2' : 'rgba(238, 235, 228, 0.78)';
+  function setLoading(isLoading, reason) {
+    if (!els.loadingOverlay) {
+      return;
+    }
+
+    els.loadingOverlay.classList.toggle('is-hidden', !isLoading);
+    els.loadingOverlay.setAttribute('aria-hidden', isLoading ? 'false' : 'true');
+    if (els.loadingReason) {
+      els.loadingReason.textContent = reason || '正在处理中...';
+    }
+    document.body.classList.toggle('admin-loading', isLoading);
   }
 
-  function setListFeedback(message, isError) {
-    els.listFeedback.textContent = message || '';
-    els.listFeedback.style.color = isError ? '#ffc0b2' : 'rgba(238, 235, 228, 0.78)';
+  function startLoading(reason) {
+    state.pendingRequests += 1;
+    setLoading(true, reason);
+  }
+
+  function stopLoading() {
+    state.pendingRequests = Math.max(0, state.pendingRequests - 1);
+    if (state.pendingRequests === 0) {
+      setLoading(false, '');
+    }
+  }
+
+  function setFormFeedback(message, isError) {
+    els.feedback.textContent = message || '';
+    els.feedback.style.color = isError ? '#c64d34' : '#6c5b4d';
   }
 
   function buildForbiddenMessage(error) {
@@ -107,11 +124,7 @@
       details.push(`Clerk user_id: ${payload.user_id}`);
     }
 
-    if (!details.length) {
-      details.push('Backend token did not expose an email claim.');
-    }
-
-    return `${baseMessage}\n${details.join('\n')}`;
+    return details.length ? `${baseMessage}\n${details.join('\n')}` : baseMessage;
   }
 
   function formatDateTime(value) {
@@ -135,19 +148,6 @@
     });
   }
 
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
-  }
-
-  function selectedItem() {
-    return state.items.find((item) => Number(item.id) === Number(state.selectedId)) || null;
-  }
-
   function setEditorEnabled(enabled) {
     const controls = els.form.querySelectorAll('input, select, textarea, button');
     controls.forEach((control) => {
@@ -160,70 +160,18 @@
     });
   }
 
-  function updateCounts() {
-    els.counts.innerHTML = [
-      `全部 ${state.counts.all || 0}`,
-      `待审核 ${state.counts.pending || 0}`,
-      `已审核 ${state.counts.approved || 0}`,
-    ].map((text) => `<span>${escapeHtml(text)}</span>`).join('');
-  }
-
-  function renderList() {
-    if (!state.items.length) {
-      els.list.innerHTML = '';
-      setListFeedback('当前筛选条件下没有数据。', false);
-      return;
-    }
-
-    setListFeedback('', false);
-    els.list.innerHTML = state.items.map((item) => {
-      const isActive = Number(item.id) === Number(state.selectedId);
-      const statusClass = Number(item.is_approved) === 1 ? 'is-approved' : 'is-pending';
-      const statusLabel = Number(item.is_approved) === 1 ? '已审核' : '待审核';
-      const meta = [item.generation ? `${item.generation}后` : '', item.location || ''].filter(Boolean).join(' · ');
-
-      return `
-        <button type="button" class="signup-item ${isActive ? 'is-active' : ''}" data-item-id="${Number(item.id)}">
-          <div class="signup-item-top">
-            <div>
-              <strong>${escapeHtml(item.nickname || `#${item.id}`)}</strong>
-              <div>${escapeHtml(meta || '未填写')}</div>
-            </div>
-            <span class="signup-item-status ${statusClass}">${statusLabel}</span>
-          </div>
-          <div class="signup-item-meta">
-            <span>#${Number(item.id)}</span>
-            <span>${escapeHtml(formatDateTime(item.created_at))}</span>
-          </div>
-        </button>
-      `;
-    }).join('');
-  }
-
   function renderForm() {
-    const item = selectedItem();
+    const item = state.item;
 
     if (!item) {
-      els.title.textContent = '请选择一条报名资料';
+      els.title.textContent = '未找到该报名资料';
       els.form.reset();
       setFormFeedback('', false);
       setEditorEnabled(false);
-      els.contactInfoField.classList.remove('is-hidden');
-      els.qrcodePathField.classList.add('is-hidden');
-      els.qrcodePreviewCard.classList.add('is-hidden');
-      [
-        els.metaCreated,
-        els.metaUpdated,
-        els.metaApprovedBy,
-        els.metaApprovedAt,
-        els.metaIpLocation,
-        els.metaDevice,
-      ].forEach((node) => {
-        node.textContent = '--';
-      });
       return;
     }
 
+    document.title = `VIP Admin - VIP #${item.id}`;
     els.title.textContent = `编辑 #${item.id} ${item.nickname || ''}`.trim();
     els.form.elements.nickname.value = item.nickname || '';
     els.form.elements.generation.value = item.generation || '80';
@@ -262,7 +210,8 @@
     setEditorEnabled(true);
   }
 
-  async function apiFetch(path, options) {
+  async function apiFetch(path, options, reason) {
+    startLoading(reason);
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
 
@@ -270,47 +219,25 @@
       headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(path, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(path, {
+        ...options,
+        headers,
+      });
 
-    const data = await response.json().catch(() => null);
+      const data = await response.json().catch(() => null);
 
-    if (!response.ok) {
-      const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
-      error.status = response.status;
-      error.payload = data;
-      throw error;
+      if (!response.ok) {
+        const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
+        error.status = response.status;
+        error.payload = data;
+        throw error;
+      }
+
+      return data;
+    } finally {
+      stopLoading();
     }
-
-    return data;
-  }
-
-  async function checkWhitelist() {
-    const data = await apiFetch('/api/vip-admin-whitelist.php', { method: 'GET' });
-    return data && data.data ? data.data : {};
-  }
-
-  async function fetchItems() {
-    const query = new URLSearchParams({
-      status: els.status.value,
-      search: els.search.value.trim(),
-    });
-
-    setListFeedback('正在加载报名数据...', false);
-
-    const data = await apiFetch(`/api/vip-admin-list.php?${query.toString()}`, { method: 'GET' });
-    state.items = Array.isArray(data.data && data.data.items) ? data.data.items : [];
-    state.counts = data.data && data.data.counts ? data.data.counts : state.counts;
-    updateCounts();
-
-    if (!state.items.some((item) => Number(item.id) === Number(state.selectedId))) {
-      state.selectedId = state.items.length ? state.items[0].id : null;
-    }
-
-    renderList();
-    renderForm();
   }
 
   async function ensureToken() {
@@ -331,20 +258,41 @@
     state.token = token;
   }
 
+  async function checkWhitelist() {
+    const data = await apiFetch('/api/vip-admin-whitelist.php', { method: 'GET' }, '正在验证管理员权限...');
+    return data && data.data ? data.data : {};
+  }
+
+  async function fetchItem() {
+    setFormFeedback('正在加载报名资料...', false);
+    const data = await apiFetch(`/api/vip-admin-item.php?id=${encodeURIComponent(String(vipId))}`, { method: 'GET' }, '正在获取报名资料...');
+    state.item = data && data.data ? data.data.item : null;
+    renderForm();
+    setFormFeedback('', false);
+  }
+
   async function refreshDashboard() {
     await ensureToken();
 
     try {
-      const access = await checkWhitelist();
+      await checkWhitelist();
       els.signoutButtons.forEach((button) => {
         button.hidden = false;
       });
 
-      await fetchItems();
+      await fetchItem();
       setView('dashboard');
     } catch (error) {
       if (error && error.status === 403) {
+        els.forbiddenTitle.textContent = '当前账号没有后台权限';
         els.forbiddenMessage.textContent = buildForbiddenMessage(error);
+        setView('forbidden');
+        return;
+      }
+
+      if (error && error.status === 404) {
+        els.forbiddenTitle.textContent = '未找到该报名资料';
+        els.forbiddenMessage.textContent = '请返回 Vips 列表后重新选择。';
         setView('forbidden');
         return;
       }
@@ -354,8 +302,9 @@
         return;
       }
 
-      setView('dashboard');
-      setListFeedback(error.message || '加载报名数据失败。', true);
+      els.forbiddenTitle.textContent = '加载失败';
+      els.forbiddenMessage.textContent = error.message || '加载报名资料失败。';
+      setView('forbidden');
     }
   }
 
@@ -428,50 +377,28 @@
     }
 
     state.token = null;
-    state.items = [];
-    state.selectedId = null;
+    state.item = null;
     els.signoutButtons.forEach((button) => {
       button.hidden = true;
     });
-    renderList();
-    renderForm();
     window.location.href = loginRoute;
   }
 
-  els.list.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-item-id]');
-    if (!button) {
-      return;
-    }
-
-    state.selectedId = Number(button.getAttribute('data-item-id'));
-    renderList();
-    renderForm();
-    closeDrawer();
-  });
-
   if (els.drawerToggle) {
-    els.drawerToggle.addEventListener('click', () => {
-      toggleDrawer();
-    });
+    els.drawerToggle.addEventListener('click', toggleDrawer);
   }
 
   if (els.drawerClose) {
-    els.drawerClose.addEventListener('click', () => {
-      closeDrawer();
-    });
+    els.drawerClose.addEventListener('click', closeDrawer);
   }
 
   if (els.drawerBackdrop) {
-    els.drawerBackdrop.addEventListener('click', () => {
-      closeDrawer();
-    });
+    els.drawerBackdrop.addEventListener('click', closeDrawer);
   }
 
   if (els.drawer) {
     els.drawer.addEventListener('click', (event) => {
-      const navLink = event.target.closest('.admin-nav-link');
-      if (navLink) {
+      if (event.target.closest('.admin-nav-link')) {
         closeDrawer();
       }
     });
@@ -489,38 +416,15 @@
     }
   });
 
-  els.refreshButton.addEventListener('click', () => {
-    refreshDashboard().catch((error) => {
-      setListFeedback(error.message || '刷新失败。', true);
-    });
-  });
-
   els.retryButton.addEventListener('click', () => {
-    refreshDashboard().catch((error) => {
-      els.forbiddenMessage.textContent = buildForbiddenMessage(error);
-    });
+    refreshDashboard();
   });
 
   els.signoutButtons.forEach((button) => {
     button.addEventListener('click', () => {
       signOut().catch(() => {
-        setListFeedback('退出时发生异常，请刷新页面重试。', true);
+        setFormFeedback('退出时发生异常，请刷新页面重试。', true);
       });
-    });
-  });
-
-  els.search.addEventListener('input', () => {
-    window.clearTimeout(els.search._debounceTimer);
-    els.search._debounceTimer = window.setTimeout(() => {
-      refreshDashboard().catch((error) => {
-        setListFeedback(error.message || '搜索失败。', true);
-      });
-    }, 250);
-  });
-
-  els.status.addEventListener('change', () => {
-    refreshDashboard().catch((error) => {
-      setListFeedback(error.message || '筛选失败。', true);
     });
   });
 
@@ -533,13 +437,12 @@
   els.form.addEventListener('submit', async (event) => {
     event.preventDefault();
 
-    const item = selectedItem();
-    if (!item) {
+    if (!state.item) {
       return;
     }
 
     const payload = {
-      id: item.id,
+      id: state.item.id,
       nickname: els.form.elements.nickname.value.trim(),
       generation: els.form.elements.generation.value,
       gender: els.form.elements.gender.value,
@@ -560,10 +463,10 @@
       await apiFetch('/api/vip-admin-update.php', {
         method: 'POST',
         body: JSON.stringify(payload),
-      });
+      }, '正在保存修改...');
 
       setFormFeedback('修改已保存。', false);
-      await fetchItems();
+      await fetchItem();
     } catch (error) {
       setFormFeedback(error.message || '保存失败。', true);
     } finally {
@@ -572,7 +475,6 @@
   });
 
   renderForm();
-  updateCounts();
   setView('dashboard');
 
   initDashboardSession()
@@ -584,7 +486,8 @@
       return refreshDashboard();
     })
     .catch((error) => {
-      setView('forbidden');
+      els.forbiddenTitle.textContent = 'Clerk 初始化失败';
       els.forbiddenMessage.textContent = error.message || 'Clerk 初始化失败。';
-  });
+      setView('forbidden');
+    });
 })();
