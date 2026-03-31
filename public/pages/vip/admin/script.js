@@ -17,7 +17,6 @@
     forbiddenState: app.querySelector('[data-forbidden-state]'),
     dashboard: app.querySelector('[data-dashboard]'),
     forbiddenMessage: app.querySelector('[data-forbidden-message]'),
-    userChip: app.querySelector('[data-admin-user-chip]'),
     search: app.querySelector('[data-admin-search]'),
     status: app.querySelector('[data-admin-status]'),
     counts: app.querySelector('[data-admin-counts]'),
@@ -314,9 +313,6 @@
 
     try {
       const access = await checkWhitelist();
-      const viewerLabel = access && access.viewer ? access.viewer.label : '';
-      els.userChip.hidden = !viewerLabel;
-      els.userChip.textContent = viewerLabel ? `已登录：${viewerLabel}` : '';
       els.signoutButtons.forEach((button) => {
         button.hidden = false;
       });
@@ -411,8 +407,6 @@
     state.token = null;
     state.items = [];
     state.selectedId = null;
-    els.userChip.hidden = true;
-    els.userChip.textContent = '';
     els.signoutButtons.forEach((button) => {
       button.hidden = true;
     });

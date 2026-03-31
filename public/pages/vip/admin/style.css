@@ -1,6 +1,9 @@
 .vip-admin-page {
   min-height: 100vh;
-  padding: 24px 0 40px;
+  padding: 0 0 24px;
+  background:
+    radial-gradient(circle at top left, rgba(210, 166, 116, 0.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(87, 126, 164, 0.1), transparent 24%);
 }
 
 .vip-admin-login-page {
@@ -36,10 +39,24 @@
   background: radial-gradient(circle, rgba(68, 124, 188, 0.26), transparent 72%);
 }
 
-.admin-hero,
+.admin-topbar,
 .admin-shell {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1320px, calc(100% - 16px));
   margin: 0 auto;
+}
+
+.admin-topbar {
+  width: 100%;
+  max-width: none;
+  min-height: 60px;
+  margin: 0 0 14px;
+  padding: 0 14px;
+  border: none;
+  background: #0f0f10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .admin-login-shell {
@@ -121,55 +138,89 @@
   text-align: center;
 }
 
-.admin-hero {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 28px 0 22px;
-}
-
-.hero-actions {
+.admin-topbar-copy {
   display: flex;
   align-items: center;
-  gap: 12px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.admin-topbar-copy .eyebrow {
+  display: none;
+}
+
+.admin-topbar-copy h1 {
+  margin: 0;
+  font-size: clamp(18px, 2.4vw, 26px);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff9f1;
+  white-space: nowrap;
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .hero-copy {
-  max-width: 700px;
-  margin: 10px 0 0;
-  color: rgba(238, 235, 228, 0.8);
+  max-width: none;
+  margin: 0;
+  color: rgba(255, 249, 241, 0.72);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .hero-chip {
-  padding: 10px 14px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  color: rgba(255, 249, 241, 0.9);
+  font-size: clamp(13px, 1.5vw, 18px);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(38vw, 420px);
+}
+
+.admin-topbar .ghost-button {
+  min-height: 36px;
+  padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff7ec;
-  font-size: 13px;
+  border: 1.5px solid rgba(255, 249, 241, 0.92);
+  background: #fff9f1;
+  color: #101010;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .admin-state-card,
 .editor-card,
 .signup-sidebar {
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
-    rgba(17, 23, 29, 0.88);
-  box-shadow: 0 28px 80px rgba(3, 8, 15, 0.28);
-  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: none;
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(248, 241, 232, 0.98));
+  box-shadow: 0 22px 60px rgba(49, 32, 17, 0.12);
 }
 
 .admin-state-card {
-  padding: 30px;
+  padding: 24px;
 }
 
 .state-copy h2,
 .sidebar-top h2,
 .editor-top h2 {
   margin: 4px 0 0;
+  color: #2d241c;
 }
 
 .state-kicker {
@@ -177,19 +228,19 @@
   font-size: 12px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(255, 226, 188, 0.78);
+  color: #8a6848;
 }
 
 .state-copy p:last-child,
 .list-feedback,
 .form-feedback {
-  color: rgba(238, 235, 228, 0.78);
+  color: #6c5b4d;
 }
 
 .state-footnote,
 .list-feedback,
 .form-feedback {
-  margin: 18px 0 0;
+  margin: 14px 0 0;
   min-height: 24px;
 }
 
@@ -200,14 +251,14 @@
 
 .dashboard {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: 1fr;
+  gap: 16px;
   align-items: start;
 }
 
 .signup-sidebar,
 .editor-card {
-  padding: 22px;
+  padding: 18px;
 }
 
 .sidebar-top,
@@ -216,25 +267,28 @@
 .editor-actions,
 .state-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .sidebar-top,
 .editor-top {
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: space-between;
 }
 
 .toolbar {
-  margin-top: 18px;
-  flex-direction: column;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .sidebar-stats {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .sidebar-stats span,
@@ -242,42 +296,43 @@
 .meta-card,
 .toggle-pill {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(116, 88, 55, 0.08);
+  background: rgba(255, 255, 255, 0.74);
 }
 
 .sidebar-stats span {
-  padding: 8px 10px;
+  padding: 8px 12px;
   font-size: 12px;
-  color: rgba(255, 245, 231, 0.9);
+  color: #5c4b3e;
 }
 
 .signup-list {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
-  max-height: 70vh;
+  gap: 10px;
+  margin-top: 16px;
+  max-height: 380px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 2px;
 }
 
 .signup-item {
   width: 100%;
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(111, 83, 51, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  color: #2f261f;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
 
 .signup-item:hover,
 .signup-item.is-active {
   transform: translateY(-1px);
-  border-color: rgba(255, 226, 188, 0.38);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(195, 145, 89, 0.34);
+  background: #fffdf9;
+  box-shadow: 0 10px 24px rgba(78, 52, 29, 0.08);
 }
 
 .signup-item-top,
@@ -296,7 +351,7 @@
 .signup-item-meta {
   margin-top: 12px;
   font-size: 12px;
-  color: rgba(238, 235, 228, 0.68);
+  color: #7f6b5a;
 }
 
 .signup-item-status {
@@ -306,37 +361,39 @@
 }
 
 .signup-item-status.is-approved {
-  background: rgba(78, 190, 110, 0.18);
-  border-color: rgba(78, 190, 110, 0.36);
-  color: #d8ffe3;
+  background: rgba(107, 183, 104, 0.14);
+  border-color: rgba(107, 183, 104, 0.24);
+  color: #2f6d39;
 }
 
 .signup-item-status.is-pending {
-  background: rgba(255, 199, 82, 0.14);
-  border-color: rgba(255, 199, 82, 0.28);
-  color: #ffe7b2;
+  background: rgba(225, 174, 78, 0.14);
+  border-color: rgba(225, 174, 78, 0.26);
+  color: #9a6418;
 }
 
 .editor-actions {
   align-items: center;
   flex-wrap: wrap;
+  justify-content: space-between;
 }
 
 .editor-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 22px;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 18px;
 }
 
 .field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .field span {
   font-size: 13px;
-  color: rgba(255, 238, 214, 0.84);
+  color: #6f5a4a;
+  font-weight: 700;
 }
 
 .field input,
@@ -345,22 +402,24 @@
   width: 100%;
   padding: 13px 14px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(10, 14, 19, 0.62);
-  color: #fff7ec;
+  border: 1px solid rgba(118, 86, 52, 0.14);
+  background: rgba(255, 255, 255, 0.96);
+  color: #2b231d;
   font: inherit;
 }
 
 .field input:disabled,
 .field select:disabled,
 .field textarea:disabled {
-  opacity: 0.62;
+  opacity: 0.72;
+  background: rgba(240, 231, 219, 0.7);
   cursor: not-allowed;
 }
 
 .field textarea {
   resize: vertical;
-  margin-top: 18px;
+  margin-top: 14px;
+  min-height: 180px;
 }
 
 .toggle-pill {
@@ -368,7 +427,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  color: #fff5e3;
+  color: #544338;
 }
 
 .toggle-pill input {
@@ -377,9 +436,9 @@
 
 .meta-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .meta-card {
@@ -392,13 +451,13 @@
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 226, 188, 0.66);
+  color: #9a7652;
 }
 
 .meta-card strong {
   display: block;
   margin-top: 8px;
-  color: #fff8f0;
+  color: #2d241c;
   line-height: 1.45;
 }
 
@@ -406,8 +465,8 @@
   margin-top: 18px;
   padding: 18px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(120, 91, 59, 0.08);
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .qrcode-preview-card img {
@@ -423,31 +482,90 @@
 }
 
 @media (max-width: 980px) {
-  .dashboard {
-    grid-template-columns: 1fr;
-  }
-
   .signup-list {
     max-height: 420px;
   }
 }
 
+@media (min-width: 900px) {
+  .vip-admin-page {
+    padding-top: 0;
+  }
+
+  .admin-shell {
+    width: min(1320px, calc(100% - 40px));
+  }
+
+  .dashboard {
+    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .signup-sidebar,
+  .editor-card,
+  .admin-state-card {
+    padding: 22px;
+  }
+
+  .sidebar-top,
+  .editor-top {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .toolbar {
+    grid-template-columns: minmax(0, 1.4fr) minmax(140px, 180px);
+    align-items: end;
+  }
+
+  .signup-list {
+    max-height: 72vh;
+  }
+
+  .editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 22px;
+  }
+
+  .meta-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 22px;
+  }
+}
+
 @media (max-width: 720px) {
-  .admin-hero,
   .admin-shell {
     width: min(100% - 20px, 100%);
   }
 
-  .admin-hero,
-  .sidebar-top,
-  .editor-top {
-    flex-direction: column;
-    align-items: start;
+  .admin-topbar {
+    min-height: 60px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
-  .hero-actions {
-    width: 100%;
-    flex-wrap: wrap;
+  .admin-topbar-copy {
+    min-width: 0;
+  }
+
+  .admin-topbar-actions {
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .admin-topbar-copy h1 {
+    font-size: 18px;
+  }
+
+  .admin-topbar .ghost-button {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 14px;
   }
 
   .admin-login-shell {

@@ -21,14 +21,12 @@ $publishableKey = vip_admin_get_publishable_key();
     data-admin-view="dashboard"
     data-clerk-publishable-key="<?php echo htmlspecialchars($publishableKey, ENT_QUOTES, 'UTF-8'); ?>"
   >
-    <section class="admin-hero">
-      <div>
+    <section class="admin-topbar">
+      <div class="admin-topbar-copy">
         <p class="eyebrow">VIP ADMIN</p>
-        <h1>报名管理后台</h1>
-        <p class="hero-copy">通过 Clerk 登录后，你可以查看报名资料、编辑信息，并切换审核状态。</p>
+        <h1>Vip Admin</h1>
       </div>
-      <div class="hero-actions">
-        <div class="hero-chip" data-admin-user-chip hidden></div>
+      <div class="admin-topbar-actions">
         <button type="button" class="ghost-button" data-admin-signout hidden>退出登录</button>
       </div>
     </section>
@@ -56,6 +54,12 @@ $publishableKey = vip_admin_get_publishable_key();
             <button type="button" class="ghost-button" data-admin-refresh>刷新</button>
           </div>
 
+          <div class="sidebar-stats" data-admin-counts>
+            <span>全部 0</span>
+            <span>待审核 0</span>
+            <span>已审核 0</span>
+          </div>
+
           <div class="toolbar">
             <label class="field">
               <span>搜索</span>
@@ -69,12 +73,6 @@ $publishableKey = vip_admin_get_publishable_key();
                 <option value="approved">已审核</option>
               </select>
             </label>
-          </div>
-
-          <div class="sidebar-stats" data-admin-counts>
-            <span>全部 0</span>
-            <span>待审核 0</span>
-            <span>已审核 0</span>
           </div>
 
           <div class="signup-list" data-signup-list></div>
