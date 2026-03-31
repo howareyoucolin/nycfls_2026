@@ -14,10 +14,8 @@
   };
 
   const els = {
-    loginState: app.querySelector('[data-login-state]'),
     forbiddenState: app.querySelector('[data-forbidden-state]'),
     dashboard: app.querySelector('[data-dashboard]'),
-    loginFeedback: app.querySelector('[data-login-feedback]'),
     forbiddenMessage: app.querySelector('[data-forbidden-message]'),
     userChip: app.querySelector('[data-admin-user-chip]'),
     search: app.querySelector('[data-admin-search]'),
@@ -27,7 +25,7 @@
     listFeedback: app.querySelector('[data-list-feedback]'),
     refreshButton: app.querySelector('[data-admin-refresh]'),
     retryButton: app.querySelector('[data-admin-retry]'),
-    signoutButton: app.querySelector('[data-admin-signout]'),
+    signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
     form: app.querySelector('[data-admin-form]'),
     saveButton: app.querySelector('[data-admin-save]'),
     title: app.querySelector('[data-editor-title]'),
@@ -47,15 +45,15 @@
 
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+  const loginRoute = '/vip/admin/login';
 
   function setView(view) {
-    els.loginState.classList.toggle('is-hidden', view !== 'login');
-    els.forbiddenState.classList.toggle('is-hidden', view !== 'forbidden');
-    els.dashboard.classList.toggle('is-hidden', view !== 'dashboard');
-  }
-
-  function setLoginFeedback(message) {
-    els.loginFeedback.textContent = message;
+    if (els.forbiddenState) {
+      els.forbiddenState.classList.toggle('is-hidden', view !== 'forbidden');
+    }
+    if (els.dashboard) {
+      els.dashboard.classList.toggle('is-hidden', view !== 'dashboard');
+    }
   }
 
   function setFormFeedback(message, isError) {
@@ -319,6 +317,9 @@
       const viewerLabel = access && access.viewer ? access.viewer.label : '';
       els.userChip.hidden = !viewerLabel;
       els.userChip.textContent = viewerLabel ? `已登录：${viewerLabel}` : '';
+      els.signoutButtons.forEach((button) => {
+        button.hidden = false;
+      });
 
       await fetchItems();
       setView('dashboard');
@@ -330,8 +331,7 @@
       }
 
       if (error && error.status === 401) {
-        setView('login');
-        setLoginFeedback('登录状态已失效，请重新登录。');
+        window.location.href = loginRoute;
         return;
       }
 
@@ -378,15 +378,11 @@
     });
   }
 
-  async function mountSignIn() {
-    const signInRoot = document.getElementById('clerk-signin');
-
+  async function initDashboardSession() {
     if (!publishableKey) {
-      setLoginFeedback('缺少 Clerk publishable key，请先直接在代码里补上。');
-      return;
+      throw new Error('缺少 Clerk publishable key，请先直接在代码里补上。');
     }
 
-    setLoginFeedback('正在加载 Clerk 登录组件...');
     await loadScript(clerkScriptSrc, {
       'data-clerk-publishable-key': publishableKey,
     });
@@ -399,35 +395,12 @@
       });
     }
 
-    if (state.clerk.session) {
-      setLoginFeedback('已检测到登录状态，正在进入后台...');
-      await refreshDashboard();
-      return;
+    if (!state.clerk.session) {
+      window.location.href = loginRoute;
+      return false;
     }
 
-    if (typeof state.clerk.mountSignIn !== 'function') {
-      throw new Error('Clerk SignIn component is unavailable.');
-    }
-
-    state.clerk.mountSignIn(signInRoot, {
-      appearance: {
-        elements: {
-          footerAction: { display: 'none' },
-        },
-      },
-    });
-
-    setLoginFeedback('请使用 Clerk 账号登录。');
-
-    window.setInterval(async () => {
-      if (!state.clerk || !state.clerk.session) {
-        return;
-      }
-
-      if (!els.loginState.classList.contains('is-hidden')) {
-        await refreshDashboard();
-      }
-    }, 1500);
+    return true;
   }
 
   async function signOut() {
@@ -440,11 +413,12 @@
     state.selectedId = null;
     els.userChip.hidden = true;
     els.userChip.textContent = '';
+    els.signoutButtons.forEach((button) => {
+      button.hidden = true;
+    });
     renderList();
     renderForm();
-    setView('login');
-    setLoginFeedback('已退出，请重新登录。');
-    window.location.hash = '';
+    window.location.href = loginRoute;
   }
 
   els.list.addEventListener('click', (event) => {
@@ -470,9 +444,11 @@
     });
   });
 
-  els.signoutButton.addEventListener('click', () => {
-    signOut().catch(() => {
-      setLoginFeedback('退出时发生异常，请刷新页面重试。');
+  els.signoutButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      signOut().catch(() => {
+        setListFeedback('退出时发生异常，请刷新页面重试。', true);
+      });
     });
   });
 
@@ -540,9 +516,18 @@
 
   renderForm();
   updateCounts();
-  setView('login');
+  setView('dashboard');
 
-  mountSignIn().catch((error) => {
-    setLoginFeedback(error.message || 'Clerk 登录组件加载失败。');
+  initDashboardSession()
+    .then((isReady) => {
+      if (!isReady) {
+        return;
+      }
+
+      return refreshDashboard();
+    })
+    .catch((error) => {
+      setView('forbidden');
+      els.forbiddenMessage.textContent = error.message || 'Clerk 初始化失败。';
   });
 })();

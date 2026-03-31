@@ -12,37 +12,28 @@ $publishableKey = vip_admin_get_publishable_key();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VIP Admin</title>
   <link rel="stylesheet" href="/assets/style.css">
-  <link rel="stylesheet" href="/pages/vip/_templates/nav.css">
   <link rel="stylesheet" href="/pages/vip/admin/style.css">
 </head>
 <body>
   <main
     class="vip-admin-page"
     data-vip-admin-app
+    data-admin-view="dashboard"
     data-clerk-publishable-key="<?php echo htmlspecialchars($publishableKey, ENT_QUOTES, 'UTF-8'); ?>"
   >
-    <?php require dirname(__DIR__) . '/_templates/nav.php'; ?>
-
     <section class="admin-hero">
       <div>
         <p class="eyebrow">VIP ADMIN</p>
         <h1>报名管理后台</h1>
         <p class="hero-copy">通过 Clerk 登录后，你可以查看报名资料、编辑信息，并切换审核状态。</p>
       </div>
-      <div class="hero-chip" data-admin-user-chip hidden></div>
+      <div class="hero-actions">
+        <div class="hero-chip" data-admin-user-chip hidden></div>
+        <button type="button" class="ghost-button" data-admin-signout hidden>退出登录</button>
+      </div>
     </section>
 
     <section class="admin-shell" data-admin-shell>
-      <div class="admin-state-card" data-login-state>
-        <div class="state-copy">
-          <p class="state-kicker">Clerk Login</p>
-          <h2>登录后进入管理后台</h2>
-          <p>仅白名单账号可以查看和管理 VIP 报名资料。</p>
-        </div>
-        <div class="signin-root" id="clerk-signin"></div>
-        <p class="state-footnote" data-login-feedback>正在加载 Clerk 登录组件...</p>
-      </div>
-
       <div class="admin-state-card is-hidden" data-forbidden-state>
         <div class="state-copy">
           <p class="state-kicker">Access Restricted</p>
