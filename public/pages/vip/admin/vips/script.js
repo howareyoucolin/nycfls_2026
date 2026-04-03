@@ -42,6 +42,7 @@
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   const loginRoute = '/vip/admin/login';
+  const loginRouteWithAuthFailure = `${loginRoute}?reason=auth_failed`;
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
   const initialParams = new URLSearchParams(window.location.search);
   const initialPage = Number(initialParams.get('page') || '1');
@@ -417,7 +418,7 @@
       }
 
       if (error && error.status === 401) {
-        window.location.href = loginRoute;
+        window.location.href = loginRouteWithAuthFailure;
         return;
       }
 
@@ -482,7 +483,7 @@
     }
 
     if (!state.clerk.session) {
-      window.location.href = loginRoute;
+      window.location.href = loginRouteWithAuthFailure;
       return false;
     }
 

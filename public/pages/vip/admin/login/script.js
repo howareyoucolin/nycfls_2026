@@ -10,6 +10,8 @@
   const signInRoot = document.getElementById('clerk-signin');
   const dashboardRoute = '/vip/admin';
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+  const pageParams = new URLSearchParams(window.location.search);
+  const redirectReason = pageParams.get('reason') || '';
 
   function setLoginFeedback(message) {
     loginFeedback.textContent = message;
@@ -69,9 +71,27 @@
     });
 
     if (window.Clerk.session) {
-      setLoginFeedback('已检测到登录状态，正在进入后台...');
-      window.location.href = dashboardRoute;
-      return;
+      if (redirectReason === 'auth_failed') {
+        setLoginFeedback('检测到已登录，但后台校验没有通过，请重新登录后再试。');
+      } else {
+        setLoginFeedback('已检测到登录状态，正在进入后台...');
+        window.location.href = dashboardRoute;
+        return;
+      }
+    }
+
+    if (redirectReason === 'auth_failed') {
+      try {
+        if (typeof window.Clerk.signOut === 'function') {
+          await window.Clerk.signOut();
+        }
+      } catch (error) {
+        // Keep the sign-in form available even if the stale session cannot be cleared.
+      }
+
+      if (window.history && typeof window.history.replaceState === 'function') {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
 
     if (typeof window.Clerk.mountSignIn !== 'function') {
@@ -88,13 +108,12 @@
       afterSignUpUrl: dashboardRoute,
     });
 
-    setLoginFeedback('请使用 Clerk 账号登录。');
+    if (redirectReason === 'auth_failed') {
+      setLoginFeedback('请重新登录管理员账号。');
+      return;
+    }
 
-    window.setInterval(() => {
-      if (window.Clerk && window.Clerk.session) {
-        window.location.href = dashboardRoute;
-      }
-    }, 1200);
+    setLoginFeedback('请使用 Clerk 账号登录。');
   }
 
   mountLogin().catch((error) => {
