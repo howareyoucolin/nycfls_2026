@@ -31,6 +31,15 @@ $adminNavCurrent = isset($adminNavCurrent) ? (string) $adminNavCurrent : 'vips';
       <span class="admin-nav-link-meta">管理账号角色</span>
     </a>
     <a
+      href="/vip/admin/debug/"
+      class="admin-nav-link<?php echo $adminNavCurrent === 'debug' ? ' is-active' : ''; ?>"
+      <?php echo $adminNavCurrent === 'debug' ? ' aria-current="page"' : ''; ?>
+      data-admin-debug-link
+    >
+      <span class="admin-nav-link-label">Debug Log</span>
+      <span class="admin-nav-link-meta">查看最近调试日志</span>
+    </a>
+    <a
       href="/vip/admin/vips/"
       class="admin-nav-link<?php echo $adminNavCurrent === 'vips' || $adminNavCurrent === 'vip' ? ' is-active' : ''; ?>"
       <?php echo $adminNavCurrent === 'vips' || $adminNavCurrent === 'vip' ? ' aria-current="page"' : ''; ?>

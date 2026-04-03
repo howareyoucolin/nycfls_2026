@@ -111,74 +111,8 @@
     };
   }
 
-  function ensureDebugPanels() {
-    if (!debugEnabled) {
-      return null;
-    }
-
-    let panels = document.getElementById('vip-admin-debug-panels');
-    if (panels) {
-      return panels;
-    }
-
-    panels = document.createElement('div');
-    panels.id = 'vip-admin-debug-panels';
-    panels.setAttribute('style', [
-      'position:fixed',
-      'top:8px',
-      'left:8px',
-      'right:8px',
-      'z-index:9999',
-      'display:grid',
-      'gap:8px',
-      'pointer-events:none',
-    ].join(';'));
-
-    const dataPanel = document.createElement('pre');
-    dataPanel.id = 'vip-admin-debug-data-panel';
-    dataPanel.setAttribute('style', [
-      'margin:0',
-      'max-height:36vh',
-      'overflow:auto',
-      'padding:10px',
-      'border-radius:10px',
-      'background:rgba(8,12,22,0.92)',
-      'color:#d7e9ff',
-      'font:12px/1.4 monospace',
-      'white-space:pre-wrap',
-      'word-break:break-word',
-      'box-shadow:0 10px 30px rgba(0,0,0,0.28)',
-      'pointer-events:auto',
-    ].join(';'));
-
-    panels.appendChild(dataPanel);
-    document.body.appendChild(panels);
-    return panels;
-  }
-
   function updateDebugPanels() {
-    if (!debugEnabled) {
-      return;
-    }
-
-    const render = () => {
-      ensureDebugPanels();
-      const dataPanel = document.getElementById('vip-admin-debug-data-panel');
-
-      if (dataPanel) {
-        dataPanel.textContent = [
-          'Clerk Debug Data',
-          JSON.stringify(collectClerkDebugData(), null, 2),
-        ].join('\n\n');
-      }
-    };
-
-    if (document.body) {
-      render();
-      return;
-    }
-
-    window.addEventListener('DOMContentLoaded', render, { once: true });
+    return collectClerkDebugData();
   }
 
   function debugLog(message) {
@@ -200,6 +134,10 @@
     } catch (error) {
       // Ignore storage failures.
     }
+  }
+
+  function getDebugLogEntries() {
+    return readDebugEntries().slice().reverse();
   }
 
   if (debugEnabled) {
@@ -407,6 +345,7 @@
     clearDebugLog,
     debugEnabled,
     debugLog,
+    getDebugLogEntries,
     getClerkUserEmail,
     redirectToAccessDenied,
     redirectToLogin,

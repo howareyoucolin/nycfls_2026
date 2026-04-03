@@ -830,6 +830,27 @@
   margin-top: 12px;
 }
 
+.debug-log-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.debug-log-row {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(111, 83, 51, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.debug-log-line {
+  margin: 0;
+  color: #42342a;
+  font: 12px/1.55 SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .users-empty {
   margin: 0;
   padding: 18px 20px;

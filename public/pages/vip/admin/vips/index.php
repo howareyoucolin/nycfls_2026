@@ -5,6 +5,8 @@ require_once ROOT_PATH . 'api/_vip_admin_auth.php';
 
 $publishableKey = vip_admin_get_publishable_key();
 $adminNavCurrent = 'vips';
+$authScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/auth.js');
+$pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/vips/script.js');
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -124,7 +126,7 @@ $adminNavCurrent = 'vips';
       </div>
     </section>
   </main>
-  <script src="/pages/vip/admin/auth.js" defer></script>
-  <script src="/pages/vip/admin/vips/script.js" defer></script>
+  <script src="/pages/vip/admin/auth.js?v=<?php echo urlencode($authScriptVersion); ?>" defer></script>
+  <script src="/pages/vip/admin/vips/script.js?v=<?php echo urlencode($pageScriptVersion); ?>" defer></script>
 </body>
 </html>

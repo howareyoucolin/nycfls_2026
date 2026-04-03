@@ -29,6 +29,7 @@
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
+    debugLinks: Array.from(app.querySelectorAll('[data-admin-debug-link]')),
     sessionEmail: app.querySelector('[data-admin-session-email]'),
     backLinks: Array.from(app.querySelectorAll('[data-admin-back-link]')),
     form: app.querySelector('[data-admin-form]'),
@@ -301,6 +302,9 @@
 
     const isAdmin = state.viewerRole === 'admin';
     els.usersLinks.forEach((link) => {
+      link.classList.toggle('is-hidden', !isAdmin);
+    });
+    els.debugLinks.forEach((link) => {
       link.classList.toggle('is-hidden', !isAdmin);
     });
   }

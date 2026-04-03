@@ -1,5 +1,5 @@
 (function () {
-  const app = document.querySelector('[data-vip-admin-users]');
+  const app = document.querySelector('[data-vip-admin-debug]');
 
   if (!app) {
     return;
@@ -9,8 +9,7 @@
     clerk: null,
     token: null,
     userEmail: '',
-    users: [],
-    pendingRemovalId: 0,
+    logs: [],
     pendingRequests: 0,
   };
 
@@ -30,14 +29,8 @@
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')).filter(Boolean),
     debugLinks: Array.from(app.querySelectorAll('[data-admin-debug-link]')).filter(Boolean),
     sessionEmail: app.querySelector('[data-admin-session-email]'),
-    form: app.querySelector('[data-user-form]'),
-    saveButton: app.querySelector('[data-user-save]'),
-    feedback: app.querySelector('[data-user-feedback]'),
-    list: app.querySelector('[data-users-list]'),
-    removeModal: app.querySelector('[data-user-remove-modal]'),
-    removeCopy: app.querySelector('[data-user-remove-copy]'),
-    removeConfirmButton: app.querySelector('[data-user-remove-confirm]'),
-    removeCancelButtons: Array.from(app.querySelectorAll('[data-user-remove-cancel]')).filter(Boolean),
+    feedback: app.querySelector('[data-debug-feedback]'),
+    list: app.querySelector('[data-debug-log-list]'),
   };
 
   const publishableKey = app.dataset.clerkPublishableKey || '';
@@ -99,6 +92,10 @@
   }
 
   function setFeedback(message, isError) {
+    if (!els.feedback) {
+      return;
+    }
+
     els.feedback.textContent = message || '';
     els.feedback.style.color = isError ? '#c64d34' : '#6c5b4d';
   }
@@ -112,39 +109,12 @@
   }
 
   function syncAdminNav() {
-    const isAdmin = true;
     els.usersLinks.forEach((link) => {
-      link.classList.toggle('is-hidden', !isAdmin);
+      link.classList.remove('is-hidden');
     });
     els.debugLinks.forEach((link) => {
-      link.classList.toggle('is-hidden', !isAdmin);
+      link.classList.remove('is-hidden');
     });
-  }
-
-  function openRemoveModal(userId) {
-    const user = state.users.find((item) => Number(item.id) === Number(userId));
-    if (!user || !els.removeModal) {
-      return;
-    }
-
-    state.pendingRemovalId = Number(user.id);
-    if (els.removeCopy) {
-      els.removeCopy.textContent = `确认移除 ${user.whitelisted_email || '该用户'} 吗？移除后，该账号将无法继续访问后台。`;
-    }
-    els.removeModal.classList.remove('is-hidden');
-    els.removeModal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('admin-modal-open');
-  }
-
-  function closeRemoveModal() {
-    state.pendingRemovalId = 0;
-    if (!els.removeModal) {
-      return;
-    }
-
-    els.removeModal.classList.add('is-hidden');
-    els.removeModal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('admin-modal-open');
   }
 
   function escapeHtml(value) {
@@ -156,59 +126,33 @@
       .replaceAll("'", '&#039;');
   }
 
-  function formatEmailLines(email) {
-    const normalized = String(email || '').trim();
-    const atIndex = normalized.indexOf('@');
-
-    if (atIndex <= 0) {
-      return {
-        local: normalized,
-        domain: '',
-      };
-    }
-
-    return {
-      local: normalized.slice(0, atIndex),
-      domain: normalized.slice(atIndex),
-    };
-  }
-
-  function renderUsers() {
-    if (!state.users.length) {
-      els.list.innerHTML = '<p class="users-empty">当前还没有用户。</p>';
+  function renderLogs() {
+    if (!els.list) {
       return;
     }
 
-    els.list.innerHTML = state.users.map((user) => {
-      const emailLines = formatEmailLines(user.whitelisted_email || '');
-
-      return `
-        <article class="user-row">
-          <div class="user-email-block">
-            <strong class="user-email-local">${escapeHtml(emailLines.local)}</strong>
-            <strong class="user-email-domain">${escapeHtml(emailLines.domain)}</strong>
+    if (!state.logs.length) {
+      els.list.innerHTML = `
+        <div class="signup-empty-state debug-empty-state">
+          <div class="signup-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 4h12v16H6z" />
+              <path d="M9 8h6" />
+              <path d="M9 12h6" />
+              <path d="M9 16h4" />
+            </svg>
           </div>
-          <div class="user-row-bottom">
-            <span class="user-role-badge">${escapeHtml(user.role === 'admin' ? '超级管理人员' : '管理人员')}</span>
-            <button
-              type="button"
-              class="ghost-button user-remove-button"
-              data-remove-user-id="${Number(user.id)}"
-              aria-label="移除用户"
-              title="移除用户"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M9 3h6" />
-                <path d="M5 6h14" />
-                <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" />
-                <path d="M10 10v6" />
-                <path d="M14 10v6" />
-              </svg>
-            </button>
-          </div>
-        </article>
+          <p class="signup-empty-title">当前还没有调试日志。</p>
+        </div>
       `;
-    }).join('');
+      return;
+    }
+
+    els.list.innerHTML = state.logs.map((line) => `
+      <article class="debug-log-row">
+        <pre class="debug-log-line">${escapeHtml(line)}</pre>
+      </article>
+    `).join('');
   }
 
   async function apiFetch(path, options, reason) {
@@ -217,10 +161,6 @@
     headers.set('Authorization', `Bearer ${state.token}`);
     headers.set('X-Clerk-Token', state.token);
     headers.set('X-Clerk-User-Email', state.userEmail);
-
-    if (options && options.body) {
-      headers.set('Content-Type', 'application/json');
-    }
 
     try {
       const response = await fetch(path, {
@@ -233,7 +173,6 @@
       if (!response.ok) {
         const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
         error.status = response.status;
-        error.payload = data;
         throw error;
       }
 
@@ -259,10 +198,10 @@
     syncSessionEmail();
   }
 
-  async function loadUsers() {
-    const data = await apiFetch('/api/vip-admin-users.php', { method: 'GET' }, '正在获取用户列表...');
-    state.users = Array.isArray(data.data && data.data.items) ? data.data.items : [];
-    renderUsers();
+  async function loadLogs() {
+    await apiFetch('/api/vip-admin-users.php', { method: 'GET' }, '正在验证管理员权限...');
+    state.logs = typeof auth.getDebugLogEntries === 'function' ? auth.getDebugLogEntries() : [];
+    renderLogs();
   }
 
   async function refreshDashboard() {
@@ -274,13 +213,13 @@
       });
 
       syncAdminNav();
-      await loadUsers();
+      await loadLogs();
       setFeedback('', false);
       setView('dashboard');
     } catch (error) {
       if (error && error.status === 403) {
         els.forbiddenTitle.textContent = '无权访问';
-        els.forbiddenMessage.textContent = '只有管理员可以访问用户管理页面。';
+        els.forbiddenMessage.textContent = '只有管理员可以访问调试日志页面。';
         setView('forbidden');
         return;
       }
@@ -291,7 +230,7 @@
       }
 
       setView('dashboard');
-      setFeedback(error.message || '加载用户列表失败。', true);
+      setFeedback(error.message || '加载调试日志失败。', true);
     }
   }
 
@@ -308,7 +247,7 @@
   async function signOut() {
     await auth.signOut(publishableKey);
     state.token = null;
-    state.users = [];
+    state.logs = [];
     els.signoutButtons.forEach((button) => {
       button.hidden = true;
     });
@@ -343,10 +282,6 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      if (els.removeModal && !els.removeModal.classList.contains('is-hidden')) {
-        closeRemoveModal();
-        return;
-      }
       closeDrawer();
     }
   });
@@ -367,99 +302,17 @@
     });
   });
 
-  els.removeCancelButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      closeRemoveModal();
-    });
-  });
-
-  if (els.removeConfirmButton) {
-    els.removeConfirmButton.addEventListener('click', async () => {
-      const userId = state.pendingRemovalId;
-      if (!Number.isFinite(userId) || userId <= 0) {
-        closeRemoveModal();
-        return;
-      }
-
-      els.removeConfirmButton.disabled = true;
-      setFeedback('正在移除用户...', false);
-
-      try {
-        await ensureToken();
-        await apiFetch('/api/vip-admin-user-delete.php', {
-          method: 'POST',
-          body: JSON.stringify({ id: userId }),
-        }, '正在移除用户...');
-        closeRemoveModal();
-        await loadUsers();
-        setFeedback('用户已移除。', false);
-      } catch (error) {
-        setFeedback(error.message || '移除用户失败。', true);
-      } finally {
-        els.removeConfirmButton.disabled = false;
-      }
-    });
-  }
-
-  if (els.form) {
-    els.form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-
-      const payload = {
-        email: els.form.elements.email.value.trim(),
-        role: els.form.elements.role.value || 'manager',
-      };
-
-      els.saveButton.disabled = true;
-      setFeedback('正在保存用户...', false);
-
-      try {
-        await ensureToken();
-        await apiFetch('/api/vip-admin-user-save.php', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        }, '正在保存用户...');
-        els.form.reset();
-        els.form.elements.role.value = 'manager';
-        await loadUsers();
-        setFeedback('用户已保存。', false);
-      } catch (error) {
-        setFeedback(error.message || '保存用户失败。', true);
-      } finally {
-        els.saveButton.disabled = false;
-      }
-    });
-  }
-
-  if (els.list) {
-    els.list.addEventListener('click', async (event) => {
-      const button = event.target.closest('[data-remove-user-id]');
-      if (!button) {
-        return;
-      }
-
-      const userId = Number(button.getAttribute('data-remove-user-id') || '0');
-      if (!Number.isFinite(userId) || userId <= 0) {
-        return;
-      }
-      openRemoveModal(userId);
-    });
-  }
-
-  renderUsers();
-  setView('dashboard');
-
   initDashboardSession()
-    .then((isReady) => {
-      if (!isReady) {
+    .then((ok) => {
+      if (!ok) {
         return;
       }
 
       return refreshDashboard();
     })
     .catch((error) => {
-      els.forbiddenTitle.textContent = 'Clerk 初始化失败';
-      els.forbiddenMessage.textContent = error.message || 'Clerk 初始化失败。';
       setView('forbidden');
+      els.forbiddenTitle.textContent = '加载失败';
+      els.forbiddenMessage.textContent = error && error.message ? error.message : '调试日志页面初始化失败。';
     });
 })();

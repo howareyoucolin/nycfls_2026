@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once ROOT_PATH . 'api/_vip_admin_auth.php';
 
 $publishableKey = vip_admin_get_publishable_key();
+$authScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/auth.js');
+$pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/login/script.js');
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -31,7 +33,7 @@ $publishableKey = vip_admin_get_publishable_key();
 
     </section>
   </main>
-  <script src="/pages/vip/admin/auth.js" defer></script>
-  <script src="/pages/vip/admin/login/script.js" defer></script>
+  <script src="/pages/vip/admin/auth.js?v=<?php echo urlencode($authScriptVersion); ?>" defer></script>
+  <script src="/pages/vip/admin/login/script.js?v=<?php echo urlencode($pageScriptVersion); ?>" defer></script>
 </body>
 </html>
