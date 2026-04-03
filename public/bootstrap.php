@@ -8,7 +8,8 @@ if (!defined('ROOT_PATH')) {
 function app_is_local_host(string $host): bool
 {
     $normalizedHost = strtolower(trim($host));
-    return in_array($normalizedHost, ['localhost', '127.0.0.1'], true);
+    $normalizedHost = preg_replace('/:\d+$/', '', $normalizedHost) ?? $normalizedHost;
+    return $normalizedHost === '127.0.0.1' || str_contains($normalizedHost, 'localhost');
 }
 
 function app_request_scheme(): string

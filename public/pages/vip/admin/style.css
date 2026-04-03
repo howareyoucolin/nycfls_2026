@@ -242,6 +242,13 @@
   text-align: center;
 }
 
+.access-denied-contact {
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+  color: #8a6848;
+}
+
 .admin-topbar-copy {
   display: flex;
   align-items: center;
@@ -533,6 +540,38 @@
 
 .admin-state-card--forbidden .state-actions {
   justify-content: center;
+}
+
+.access-denied-actions {
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.access-denied-signout-button {
+  min-width: 220px;
+  min-height: 52px;
+  padding: 0 22px;
+  border: 1px solid rgba(143, 103, 61, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #8f6842 0%, #765233 100%);
+  color: #fffaf3;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 14px 30px rgba(88, 57, 29, 0.18);
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.access-denied-signout-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 36px rgba(88, 57, 29, 0.22);
+  filter: brightness(1.03);
+}
+
+.access-denied-signout-button:active {
+  transform: translateY(0);
+  box-shadow: 0 10px 20px rgba(88, 57, 29, 0.16);
 }
 
 .sidebar-top,

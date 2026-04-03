@@ -8,6 +8,7 @@
   const state = {
     clerk: null,
     token: null,
+    userEmail: '',
     items: [],
     selectedId: null,
     counts: { all: 0, pending: 0, approved: 0 },
@@ -50,6 +51,7 @@
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   const loginRoute = '/vip/admin/login';
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
+  const auth = window.VipAdminAuth;
 
   function setDrawerOpen(isOpen) {
     const shouldOpen = Boolean(isOpen) && mobileDrawerQuery.matches;
@@ -266,6 +268,7 @@
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
     headers.set('X-Clerk-Token', state.token);
+    headers.set('X-Clerk-User-Email', state.userEmail);
 
     if (options && options.body) {
       headers.set('Content-Type', 'application/json');
@@ -325,6 +328,7 @@
     }
 
     state.token = token;
+    state.userEmail = auth.getClerkUserEmail(state.clerk);
   }
 
   async function refreshDashboard() {
@@ -339,8 +343,7 @@
       setView('dashboard');
     } catch (error) {
       if (error && error.status === 403) {
-        els.forbiddenMessage.textContent = buildForbiddenMessage(error);
-        setView('forbidden');
+        auth.redirectToAccessDenied('not_whitelisted');
         return;
       }
 

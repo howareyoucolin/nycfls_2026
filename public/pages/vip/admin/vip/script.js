@@ -8,6 +8,7 @@
   const state = {
     clerk: null,
     token: null,
+    userEmail: '',
     item: null,
     pendingRequests: 0,
   };
@@ -194,6 +195,7 @@
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
     headers.set('X-Clerk-Token', state.token);
+    headers.set('X-Clerk-User-Email', state.userEmail);
 
     if (options && options.body) {
       headers.set('Content-Type', 'application/json');
@@ -242,6 +244,7 @@
 
     state.clerk = authState.clerk;
     state.token = authState.token;
+    state.userEmail = authState.userEmail || '';
   }
 
   async function fetchItem() {
@@ -266,8 +269,7 @@
     } catch (error) {
       if (error && error.status === 403) {
         auth.debugLog('vip refreshDashboard forbidden');
-        auth.setWhitelistDeniedView(els.forbiddenTitle, els.forbiddenMessage, { setDocumentTitle: true });
-        setView('forbidden');
+        auth.redirectToAccessDenied('not_whitelisted');
         return;
       }
 

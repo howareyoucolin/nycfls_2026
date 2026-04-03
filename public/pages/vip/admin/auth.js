@@ -1,8 +1,12 @@
 (function () {
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
+  const accessDeniedRoute = '/vip/admin/access-denied/';
   const loginRoute = '/vip/admin/login';
   const debugEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
   const debugStorageKey = 'vip-admin-debug-log';
+  const debugState = {
+    lastTokenClaims: null,
+  };
 
   function readDebugEntries() {
     try {
@@ -22,34 +26,159 @@
     }
   }
 
-  function ensureDebugPanel() {
-    if (!debugEnabled || document.getElementById('vip-admin-debug-panel')) {
+  function cloneDebugValue(value, depth, seen) {
+    if (value == null) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      return value.length > 400 ? `${value.slice(0, 400)}... [truncated ${value.length - 400} chars]` : value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return value;
+    }
+
+    if (typeof value === 'function') {
+      return `[function ${value.name || 'anonymous'}]`;
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+
+    if (depth <= 0) {
+      if (Array.isArray(value)) {
+        return `[array(${value.length})]`;
+      }
+
+      return '[object]';
+    }
+
+    if (typeof value !== 'object') {
+      return String(value);
+    }
+
+    if (seen.has(value)) {
+      return '[circular]';
+    }
+
+    seen.add(value);
+
+    if (Array.isArray(value)) {
+      return value.slice(0, 20).map((item) => cloneDebugValue(item, depth - 1, seen));
+    }
+
+    const output = {};
+    Object.keys(value).slice(0, 40).forEach((key) => {
+      try {
+        output[key] = cloneDebugValue(value[key], depth - 1, seen);
+      } catch (error) {
+        output[key] = `[unavailable: ${error && error.message ? error.message : 'unknown'}]`;
+      }
+    });
+    return output;
+  }
+
+  function collectClerkDebugData() {
+    const clerk = window.Clerk || null;
+    const session = clerk && clerk.session ? clerk.session : null;
+    const user =
+      (clerk && clerk.user) ||
+      (session && session.user) ||
+      null;
+    const client = clerk && clerk.client ? clerk.client : null;
+    const organization = clerk && clerk.organization ? clerk.organization : null;
+
+    return {
+      page: window.location.href,
+      loadedAt: new Date().toISOString(),
+      clerkLoaded: Boolean(clerk),
+      sessionExists: Boolean(session),
+      userExists: Boolean(user),
+      organizationExists: Boolean(organization),
+      clerk: cloneDebugValue(clerk ? {
+        version: clerk.version,
+        publishableKey: clerk.publishableKey,
+        domain: clerk.domain,
+        isSignedIn: clerk.isSignedIn,
+      } : null, 2, new WeakSet()),
+      session: cloneDebugValue(session, 3, new WeakSet()),
+      user: cloneDebugValue(user, 4, new WeakSet()),
+      client: cloneDebugValue(client, 3, new WeakSet()),
+      organization: cloneDebugValue(organization, 3, new WeakSet()),
+      lastTokenClaims: cloneDebugValue(debugState.lastTokenClaims, 3, new WeakSet()),
+    };
+  }
+
+  function ensureDebugPanels() {
+    if (!debugEnabled) {
       return null;
     }
 
-    const panel = document.createElement('pre');
-    panel.id = 'vip-admin-debug-panel';
-    panel.setAttribute('style', [
+    let panels = document.getElementById('vip-admin-debug-panels');
+    if (panels) {
+      return panels;
+    }
+
+    panels = document.createElement('div');
+    panels.id = 'vip-admin-debug-panels';
+    panels.setAttribute('style', [
       'position:fixed',
+      'top:8px',
       'left:8px',
       'right:8px',
-      'bottom:8px',
-      'max-height:38vh',
-      'overflow:auto',
       'z-index:9999',
+      'display:grid',
+      'gap:8px',
+      'pointer-events:none',
+    ].join(';'));
+
+    const dataPanel = document.createElement('pre');
+    dataPanel.id = 'vip-admin-debug-data-panel';
+    dataPanel.setAttribute('style', [
       'margin:0',
+      'max-height:36vh',
+      'overflow:auto',
       'padding:10px',
       'border-radius:10px',
-      'background:rgba(0,0,0,0.88)',
-      'color:#9ef59e',
+      'background:rgba(8,12,22,0.92)',
+      'color:#d7e9ff',
       'font:12px/1.4 monospace',
       'white-space:pre-wrap',
       'word-break:break-word',
+      'box-shadow:0 10px 30px rgba(0,0,0,0.28)',
+      'pointer-events:auto',
     ].join(';'));
 
-    panel.textContent = readDebugEntries().join('\n');
-    document.body.appendChild(panel);
-    return panel;
+    panels.appendChild(dataPanel);
+    document.body.appendChild(panels);
+    return panels;
+  }
+
+  function updateDebugPanels() {
+    if (!debugEnabled) {
+      return;
+    }
+
+    const render = () => {
+      ensureDebugPanels();
+      const dataPanel = document.getElementById('vip-admin-debug-data-panel');
+
+      if (dataPanel) {
+        dataPanel.textContent = [
+          'Clerk Debug Data',
+          JSON.stringify(collectClerkDebugData(), null, 2),
+        ].join('\n\n');
+      }
+    };
+
+    if (document.body) {
+      render();
+      return;
+    }
+
+    window.addEventListener('DOMContentLoaded', render, { once: true });
   }
 
   function debugLog(message) {
@@ -62,18 +191,7 @@
       return;
     }
 
-    const updatePanel = () => {
-      const panel = ensureDebugPanel();
-      if (panel) {
-        panel.textContent = entries.slice(-80).join('\n');
-      }
-    };
-
-    if (document.body) {
-      updatePanel();
-    } else {
-      window.addEventListener('DOMContentLoaded', updatePanel, { once: true });
-    }
+    updateDebugPanels();
   }
 
   function clearDebugLog() {
@@ -96,9 +214,28 @@
     return `${loginRoute}?reason=${encodeURIComponent(reason)}`;
   }
 
+  function buildAccessDeniedUrl(reason) {
+    const params = new URLSearchParams();
+    if (reason) {
+      params.set('reason', reason);
+    }
+    if (debugEnabled) {
+      params.set('debug', '1');
+    }
+
+    const query = params.toString();
+    return query ? `${accessDeniedRoute}?${query}` : accessDeniedRoute;
+  }
+
   function redirectToLogin(reason) {
     const nextUrl = buildLoginUrl(reason || 'need_login');
     debugLog(`redirectToLogin -> ${nextUrl}`);
+    window.location.href = nextUrl;
+  }
+
+  function redirectToAccessDenied(reason) {
+    const nextUrl = buildAccessDeniedUrl(reason || 'not_whitelisted');
+    debugLog(`redirectToAccessDenied -> ${nextUrl}`);
     window.location.href = nextUrl;
   }
 
@@ -157,6 +294,7 @@
     }
 
     debugLog(`loadClerk complete session=${window.Clerk.session ? 'yes' : 'no'}`);
+    updateDebugPanels();
 
     return window.Clerk;
   }
@@ -192,6 +330,7 @@
       const parts = token.split('.');
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        debugState.lastTokenClaims = payload;
         debugLog(`token claims azp=${payload.azp || '[none]'} iss=${payload.iss || '[none]'} sub=${payload.sub || '[none]'}`);
       }
     } catch (error) {
@@ -202,7 +341,39 @@
     return {
       clerk: result.clerk,
       token,
+      userEmail: getClerkUserEmail(result.clerk),
     };
+  }
+
+  function getClerkUserEmail(clerk) {
+    const candidates = [
+      clerk && clerk.user ? clerk.user : null,
+      clerk && clerk.session && clerk.session.user ? clerk.session.user : null,
+    ];
+
+    for (const user of candidates) {
+      if (!user) {
+        continue;
+      }
+
+      const primary = user.primaryEmailAddress && user.primaryEmailAddress.emailAddress
+        ? String(user.primaryEmailAddress.emailAddress).trim()
+        : '';
+      if (primary) {
+        return primary.toLowerCase();
+      }
+
+      if (Array.isArray(user.emailAddresses)) {
+        for (const emailEntry of user.emailAddresses) {
+          const value = emailEntry && emailEntry.emailAddress ? String(emailEntry.emailAddress).trim() : '';
+          if (value) {
+            return value.toLowerCase();
+          }
+        }
+      }
+    }
+
+    return '';
   }
 
   async function signOut(publishableKey) {
@@ -211,10 +382,12 @@
     if (typeof clerk.signOut === 'function') {
       await clerk.signOut();
     }
+    debugState.lastTokenClaims = null;
     debugLog('signOut complete');
+    updateDebugPanels();
   }
 
-  function setWhitelistDeniedView(titleEl, messageEl, options) {
+  function setAccessDeniedView(titleEl, messageEl, options) {
     const title = 'Access denied';
     const message = 'Your account does not have access to this page. If you need access, contact an administrator.';
     if (titleEl) {
@@ -230,14 +403,17 @@
 
   window.VipAdminAuth = {
     buildLoginUrl,
+    buildAccessDeniedUrl,
     clearDebugLog,
     debugEnabled,
     debugLog,
+    getClerkUserEmail,
+    redirectToAccessDenied,
     redirectToLogin,
     loadClerk,
     requireSession,
     requireToken,
-    setWhitelistDeniedView,
+    setAccessDeniedView,
     signOut,
   };
 })();

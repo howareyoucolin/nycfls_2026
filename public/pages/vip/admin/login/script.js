@@ -30,14 +30,6 @@
     setLoginFeedback('正在加载 Clerk 登录组件...');
     let clerk = await auth.loadClerk(publishableKey);
 
-    // Legacy / soft "auth_failed" (e.g. not on whitelist): keep Clerk signed in and let the admin UI show access denied.
-    if (clerk.session && redirectReason === 'auth_failed') {
-      auth.debugLog('login auth_failed -> dashboard (no signOut)');
-      setLoginFeedback('正在进入后台...');
-      window.location.href = dashboardUrl;
-      return;
-    }
-
     if (redirectReason === 'token_invalid') {
       auth.debugLog('login token_invalid branch');
       if (clerk.session) {

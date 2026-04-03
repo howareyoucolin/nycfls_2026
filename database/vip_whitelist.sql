@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS vip_whitelist (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    whitelisted_email VARCHAR(255) NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

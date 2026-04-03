@@ -67,7 +67,8 @@ function vip_admin_get_canonical_origin(): string
 function vip_admin_is_local_host(string $host): bool
 {
     $normalizedHost = strtolower(trim($host));
-    return in_array($normalizedHost, ['localhost', '127.0.0.1'], true);
+    $normalizedHost = preg_replace('/:\d+$/', '', $normalizedHost) ?? $normalizedHost;
+    return $normalizedHost === '127.0.0.1' || str_contains($normalizedHost, 'localhost');
 }
 
 function vip_admin_request_scheme(): string
@@ -180,6 +181,11 @@ function vip_admin_decode_jwt_payload(string $jwt): array
 
 function vip_admin_actor_label(array $claims): string
 {
+    $requestEmail = vip_admin_get_request_email();
+    if ($requestEmail !== null) {
+        return $requestEmail;
+    }
+
     foreach (['email', 'email_address', 'primary_email_address'] as $key) {
         $value = trim((string) ($claims[$key] ?? ''));
         if ($value !== '') {
@@ -188,6 +194,46 @@ function vip_admin_actor_label(array $claims): string
     }
 
     return trim((string) ($claims['sub'] ?? ''));
+}
+
+function vip_admin_get_request_email(): ?string
+{
+    $direct = trim((string) ($_SERVER['HTTP_X_CLERK_USER_EMAIL'] ?? ''));
+    if ($direct !== '') {
+        return mb_strtolower($direct);
+    }
+
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        if (is_array($headers)) {
+            $email = trim((string) ($headers['X-Clerk-User-Email'] ?? $headers['x-clerk-user-email'] ?? ''));
+            if ($email !== '') {
+                return mb_strtolower($email);
+            }
+        }
+    }
+
+    return null;
+}
+
+function vip_admin_is_whitelisted_email(string $email): bool
+{
+    try {
+        $pdo = db();
+        $statement = $pdo->prepare(
+            'SELECT id
+            FROM vip_whitelist
+            WHERE LOWER(TRIM(whitelisted_email)) = :email
+            LIMIT 1'
+        );
+        $statement->execute([
+            ':email' => mb_strtolower(trim($email)),
+        ]);
+
+        return (bool) $statement->fetchColumn();
+    } catch (Throwable $throwable) {
+        api_error('server_error', 'Unable to verify VIP admin access right now.', 500);
+    }
 }
 
 function vip_admin_require_auth(): array
@@ -226,6 +272,22 @@ function vip_admin_require_auth(): array
             'token_azp' => (string) ($tokenPayload['azp'] ?? ''),
             'token_iss' => (string) ($tokenPayload['iss'] ?? ''),
             'token_sub' => (string) ($tokenPayload['sub'] ?? ''),
+        ]);
+    }
+
+    $requestEmail = vip_admin_get_request_email();
+    if ($requestEmail === null || $requestEmail === '') {
+        api_error('forbidden', 'Your account is not on the VIP admin whitelist.', 403, [
+            'reason' => 'missing_email',
+            'user_id' => (string) ($claims['sub'] ?? ''),
+        ]);
+    }
+
+    if (!vip_admin_is_whitelisted_email($requestEmail)) {
+        api_error('forbidden', 'Your account is not on the VIP admin whitelist.', 403, [
+            'reason' => 'email_not_whitelisted',
+            'user_id' => (string) ($claims['sub'] ?? ''),
+            'email' => $requestEmail,
         ]);
     }
 
