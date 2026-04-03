@@ -52,8 +52,60 @@ function vip_admin_get_authorized_parties(): array
     return [
         'http://localhost:18084',
         'http://127.0.0.1:18084',
+        'http://nycflushing.com',
+        'http://www.nycflushing.com',
         'https://nycflushing.com',
+        'https://www.nycflushing.com',
     ];
+}
+
+function vip_admin_get_canonical_origin(): string
+{
+    return 'https://nycflushing.com';
+}
+
+function vip_admin_is_local_host(string $host): bool
+{
+    $normalizedHost = strtolower(trim($host));
+    return in_array($normalizedHost, ['localhost', '127.0.0.1'], true);
+}
+
+function vip_admin_request_scheme(): string
+{
+    $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+    if ($https !== '' && $https !== 'off') {
+        return 'https';
+    }
+
+    $forwardedProto = strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+    if ($forwardedProto !== '') {
+        $parts = explode(',', $forwardedProto);
+        return trim($parts[0]) === 'https' ? 'https' : 'http';
+    }
+
+    return 'http';
+}
+
+function vip_admin_enforce_canonical_origin(): void
+{
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '' || vip_admin_is_local_host($host)) {
+        return;
+    }
+
+    $canonicalOrigin = vip_admin_get_canonical_origin();
+    if ($canonicalOrigin === '') {
+        return;
+    }
+
+    $currentOrigin = vip_admin_request_scheme() . '://' . $host;
+    if (strcasecmp(rtrim($currentOrigin, '/'), rtrim($canonicalOrigin, '/')) === 0) {
+        return;
+    }
+
+    $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+    header('Location: ' . rtrim($canonicalOrigin, '/') . $requestUri, true, 302);
+    exit;
 }
 
 function vip_admin_get_email_whitelist(): array
