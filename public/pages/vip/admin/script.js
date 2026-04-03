@@ -265,6 +265,7 @@
   async function apiFetch(path, options) {
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
+    headers.set('X-Clerk-Token', state.token);
 
     if (options && options.body) {
       headers.set('Content-Type', 'application/json');

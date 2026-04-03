@@ -115,6 +115,11 @@ function vip_admin_get_authorization_header_value(): string
         return $direct;
     }
 
+    $clerkTokenHeader = trim((string) ($_SERVER['HTTP_X_CLERK_TOKEN'] ?? ''));
+    if ($clerkTokenHeader !== '') {
+        return 'Bearer ' . $clerkTokenHeader;
+    }
+
     // Apache + CGI / some rewrite stacks strip HTTP_AUTHORIZATION unless configured; try fallbacks.
     $redirect = trim((string) ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? ''));
     if ($redirect !== '') {
@@ -135,7 +140,15 @@ function vip_admin_get_authorization_header_value(): string
     if (function_exists('getallheaders')) {
         $headers = getallheaders();
         if (is_array($headers)) {
-            return trim((string) ($headers['Authorization'] ?? $headers['authorization'] ?? ''));
+            $authorization = trim((string) ($headers['Authorization'] ?? $headers['authorization'] ?? ''));
+            if ($authorization !== '') {
+                return $authorization;
+            }
+
+            $clerkToken = trim((string) ($headers['X-Clerk-Token'] ?? $headers['x-clerk-token'] ?? ''));
+            if ($clerkToken !== '') {
+                return 'Bearer ' . $clerkToken;
+            }
         }
     }
 

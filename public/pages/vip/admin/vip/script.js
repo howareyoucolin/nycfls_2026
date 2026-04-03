@@ -193,6 +193,7 @@
     startLoading(reason);
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
+    headers.set('X-Clerk-Token', state.token);
 
     if (options && options.body) {
       headers.set('Content-Type', 'application/json');
@@ -209,6 +210,9 @@
       auth.debugLog(`vip fetch status ${path} -> ${response.status}`);
 
       if (!response.ok) {
+        if (data && data.error && data.error.code) {
+          auth.debugLog(`vip fetch error_code ${path} -> ${data.error.code}`);
+        }
         if (data && data.data && Array.isArray(data.data.details)) {
           auth.debugLog(`vip fetch details ${data.data.details.join(' | ')}`);
         }
