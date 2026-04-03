@@ -219,13 +219,17 @@ function vip_admin_require_auth(): array
     $claims = null;
     $authorizedParties = vip_admin_get_authorized_parties();
     $verificationErrors = [];
+    $azpCandidates = $authorizedParties !== [] ? array_values($authorizedParties) : [];
+    $azpCandidates[] = null;
+    $azpCandidates = array_values(array_unique($azpCandidates, SORT_REGULAR));
 
-    foreach ($authorizedParties !== [] ? $authorizedParties : [null] as $azp) {
+    foreach ($azpCandidates as $azp) {
         try {
             $claims = clerk_verify_jwt($token, $issuer, is_string($azp) ? $azp : null);
             break;
         } catch (Throwable $throwable) {
-            $verificationErrors[] = $throwable->getMessage();
+            $label = is_string($azp) && $azp !== '' ? $azp : '[no-azp-check]';
+            $verificationErrors[] = $label . ': ' . $throwable->getMessage();
         }
     }
 

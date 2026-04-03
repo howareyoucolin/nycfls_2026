@@ -47,15 +47,16 @@ $publishableKey = vip_admin_get_publishable_key();
     </section>
 
     <section class="admin-shell">
-      <div class="admin-state-card is-hidden" data-forbidden-state>
+      <div class="admin-state-card admin-state-card--forbidden is-hidden" data-forbidden-state>
+        <div class="admin-state-icon" aria-hidden="true">!</div>
         <div class="state-copy">
-          <p class="state-kicker">Access Restricted</p>
-          <h2>当前账号没有后台权限</h2>
-          <p data-forbidden-message>请联系管理员将你的 Clerk 账号加入白名单。</p>
+          <p class="state-kicker">Access Denied</p>
+          <h2>这个账号还不能进入后台</h2>
+          <p data-forbidden-message>请联系管理员将你的 Clerk 账号加入白名单后再试。</p>
         </div>
         <div class="state-actions">
           <button type="button" class="ghost-button" data-admin-signout>退出并切换账号</button>
-          <button type="button" class="primary-button" data-admin-retry>重新检查权限</button>
+          <button type="button" class="primary-button" data-admin-retry>重新验证</button>
         </div>
       </div>
 
