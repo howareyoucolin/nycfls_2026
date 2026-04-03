@@ -66,6 +66,22 @@ function fetch_jwks(string $issuer, int $cacheTtlSeconds = 3600): array
     return json_decode_assoc($jwksJson);
 }
 
+function find_jwk_by_kid(array $jwks, string $keyId): ?array
+{
+    $keys = $jwks['keys'] ?? null;
+    if (!is_array($keys)) {
+        throw new RuntimeException('Invalid JWKS response.');
+    }
+
+    foreach ($keys as $key) {
+        if (($key['kid'] ?? '') === $keyId) {
+            return $key;
+        }
+    }
+
+    return null;
+}
+
 function der_len(int $length): string
 {
     if ($length < 0x80) {
@@ -172,21 +188,15 @@ function clerk_verify_jwt(string $jwt, string $issuer, ?string $expectedAzp = nu
     }
 
     $jwks = fetch_jwks($issuer);
-    $keys = $jwks['keys'] ?? null;
-    if (!is_array($keys)) {
-        throw new RuntimeException('Invalid JWKS response.');
-    }
+    $matchingKey = find_jwk_by_kid($jwks, $keyId);
 
-    $matchingKey = null;
-    foreach ($keys as $key) {
-        if (($key['kid'] ?? '') === $keyId) {
-            $matchingKey = $key;
-            break;
-        }
+    if (!is_array($matchingKey)) {
+        $jwks = fetch_jwks($issuer, 0);
+        $matchingKey = find_jwk_by_kid($jwks, $keyId);
     }
 
     if (!is_array($matchingKey)) {
-        throw new RuntimeException('Unable to find Clerk signing key.');
+        throw new RuntimeException('Unable to find Clerk signing key after JWKS refresh.');
     }
 
     $publicKey = openssl_pkey_get_public(jwk_rsa_to_pem($matchingKey));
