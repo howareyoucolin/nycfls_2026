@@ -5,8 +5,6 @@ require_once dirname(__DIR__) . '/bootstrap.php';
 require_once __DIR__ . '/_response.php';
 require_once __DIR__ . '/_clerk_jwt.php';
 
-app_enforce_www_canonical_host();
-
 function vip_admin_config_value(string $envKey, string $constKey, string $default = ''): string
 {
     $envValue = getenv($envKey);

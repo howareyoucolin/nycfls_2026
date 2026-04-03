@@ -5,6 +5,13 @@
     return;
   }
 
+  if (window.location.hostname === 'nycflushing.com') {
+    const canonicalUrl = new URL(window.location.href);
+    canonicalUrl.hostname = 'www.nycflushing.com';
+    window.location.replace(canonicalUrl.toString());
+    return;
+  }
+
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const loginFeedback = app.querySelector('[data-login-feedback]');
   const signInRoot = document.getElementById('clerk-signin');
