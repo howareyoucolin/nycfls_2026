@@ -5,6 +5,8 @@ require_once dirname(__DIR__) . '/bootstrap.php';
 require_once __DIR__ . '/_response.php';
 require_once __DIR__ . '/_clerk_jwt.php';
 
+app_enforce_www_canonical_host();
+
 function vip_admin_config_value(string $envKey, string $constKey, string $default = ''): string
 {
     $envValue = getenv($envKey);
@@ -61,7 +63,7 @@ function vip_admin_get_authorized_parties(): array
 
 function vip_admin_get_canonical_origin(): string
 {
-    return 'https://nycflushing.com';
+    return 'https://www.nycflushing.com';
 }
 
 function vip_admin_is_local_host(string $host): bool

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+app_enforce_www_canonical_host();
+
 $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 
