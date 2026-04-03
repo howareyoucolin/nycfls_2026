@@ -8,7 +8,7 @@
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const loginFeedback = app.querySelector('[data-login-feedback]');
   const signInRoot = document.getElementById('clerk-signin');
-  const dashboardRoute = '/vip/admin';
+  const dashboardRoute = '/vip/admin/vips/';
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   const pageParams = new URLSearchParams(window.location.search);
   const redirectReason = pageParams.get('reason') || '';
@@ -104,6 +104,8 @@
           footerAction: { display: 'none' },
         },
       },
+      forceRedirectUrl: dashboardRoute,
+      fallbackRedirectUrl: dashboardRoute,
       afterSignInUrl: dashboardRoute,
       afterSignUpUrl: dashboardRoute,
     });
