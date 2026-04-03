@@ -5,6 +5,7 @@ require_once ROOT_PATH . 'api/_vip_admin_auth.php';
 
 $publishableKey = vip_admin_get_publishable_key();
 $vipId = (int) ($_GET['id'] ?? 0);
+$adminNavCurrent = 'vip';
 
 if ($vipId <= 0) {
     http_response_code(404);
@@ -77,33 +78,7 @@ if ($vipId <= 0) {
           aria-label="关闭菜单"
         ></button>
 
-        <aside class="admin-nav" data-admin-drawer>
-          <div class="admin-nav-top">
-            <div>
-              <p class="state-kicker">Navigation</p>
-              <h2>Admin Menu</h2>
-            </div>
-            <button
-              type="button"
-              class="drawer-close-button"
-              data-admin-drawer-close
-              aria-label="关闭菜单"
-            >
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <nav class="admin-nav-links" aria-label="VIP Admin Navigation">
-            <button type="button" class="admin-nav-link is-disabled" disabled>
-              <span class="admin-nav-link-label">Users Management</span>
-              <span class="admin-nav-link-meta">Coming soon</span>
-            </button>
-            <a href="/vip/admin/vips/" class="admin-nav-link is-active" aria-current="page">
-              <span class="admin-nav-link-label">Vips</span>
-              <span class="admin-nav-link-meta">Review applications</span>
-            </a>
-          </nav>
-        </aside>
+        <?php require ROOT_PATH . 'pages/vip/admin/_partials/sidebar.php'; ?>
 
         <section class="editor-panel editor-panel--full">
           <form class="editor-card" data-admin-form>

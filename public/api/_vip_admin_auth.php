@@ -218,10 +218,15 @@ function vip_admin_get_request_email(): ?string
 
 function vip_admin_is_whitelisted_email(string $email): bool
 {
+    return vip_admin_get_whitelist_entry($email) !== null;
+}
+
+function vip_admin_get_whitelist_entry(string $email): ?array
+{
     try {
         $pdo = db();
         $statement = $pdo->prepare(
-            'SELECT id
+            'SELECT id, whitelisted_email, role
             FROM vip_whitelist
             WHERE LOWER(TRIM(whitelisted_email)) = :email
             LIMIT 1'
@@ -230,7 +235,8 @@ function vip_admin_is_whitelisted_email(string $email): bool
             ':email' => mb_strtolower(trim($email)),
         ]);
 
-        return (bool) $statement->fetchColumn();
+        $row = $statement->fetch();
+        return is_array($row) ? $row : null;
     } catch (Throwable $throwable) {
         api_error('server_error', 'Unable to verify VIP admin access right now.', 500);
     }
@@ -283,7 +289,8 @@ function vip_admin_require_auth(): array
         ]);
     }
 
-    if (!vip_admin_is_whitelisted_email($requestEmail)) {
+    $whitelistEntry = vip_admin_get_whitelist_entry($requestEmail);
+    if ($whitelistEntry === null) {
         api_error('forbidden', 'Your account is not on the VIP admin whitelist.', 403, [
             'reason' => 'email_not_whitelisted',
             'user_id' => (string) ($claims['sub'] ?? ''),
@@ -292,7 +299,25 @@ function vip_admin_require_auth(): array
     }
 
     $claims['_actor_label'] = vip_admin_actor_label($claims);
+    $claims['_viewer_email'] = $requestEmail;
+    $claims['_viewer_role'] = (string) ($whitelistEntry['role'] ?? 'manager');
     return $claims;
+}
+
+function vip_admin_require_role(array $claims, string $requiredRole): void
+{
+    $viewerRole = (string) ($claims['_viewer_role'] ?? '');
+    if ($viewerRole === $requiredRole) {
+        return;
+    }
+
+    api_error('forbidden', 'Your account does not have access to this page.', 403, [
+        'reason' => 'insufficient_role',
+        'required_role' => $requiredRole,
+        'viewer_role' => $viewerRole,
+        'email' => (string) ($claims['_viewer_email'] ?? ''),
+        'user_id' => (string) ($claims['sub'] ?? ''),
+    ]);
 }
 
 function vip_admin_request_json(): array

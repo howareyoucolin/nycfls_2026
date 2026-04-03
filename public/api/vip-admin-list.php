@@ -132,6 +132,8 @@ try {
         'viewer' => [
             'user_id' => (string) ($claims['sub'] ?? ''),
             'label' => (string) ($claims['_actor_label'] ?? ''),
+            'email' => (string) ($claims['_viewer_email'] ?? ''),
+            'role' => (string) ($claims['_viewer_role'] ?? ''),
         ],
     ], 'Loaded VIP signups.');
 } catch (Throwable $throwable) {

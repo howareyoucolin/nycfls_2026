@@ -9,6 +9,7 @@
     clerk: null,
     token: null,
     userEmail: '',
+    viewerRole: '',
     items: [],
     counts: { all: 0, pending: 0, approved: 0 },
     status: 'pending',
@@ -39,6 +40,7 @@
     refreshButton: app.querySelector('[data-admin-refresh]'),
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
+    usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
   };
 
   const publishableKey = app.dataset.clerkPublishableKey || '';
@@ -109,6 +111,17 @@
   function setListFeedback(message, isError) {
     els.listFeedback.textContent = message || '';
     els.listFeedback.style.color = isError ? '#ffc0b2' : '#6c5b4d';
+  }
+
+  function syncUsersNav() {
+    if (!state.viewerRole) {
+      return;
+    }
+
+    const isAdmin = state.viewerRole === 'admin';
+    els.usersLinks.forEach((link) => {
+      link.classList.toggle('is-hidden', !isAdmin);
+    });
   }
 
   function formatDateTime(value) {
@@ -374,11 +387,13 @@
     const data = await apiFetch(`/api/vip-admin-list.php?${query.toString()}`, { method: 'GET' }, '正在获取报名数据...');
     state.items = Array.isArray(data.data && data.data.items) ? data.data.items : [];
     state.counts = data.data && data.data.counts ? data.data.counts : state.counts;
+    state.viewerRole = String(data.data && data.data.viewer ? data.data.viewer.role || '' : '');
     state.page = Number(data.data && data.data.pagination ? data.data.pagination.page : state.page) || 1;
     state.perPage = Number(data.data && data.data.pagination ? data.data.pagination.per_page : state.perPage) || 50;
     state.totalItems = Number(data.data && data.data.pagination ? data.data.pagination.total_items : 0) || 0;
     state.totalPages = Number(data.data && data.data.pagination ? data.data.pagination.total_pages : 1) || 1;
     syncUrl();
+    syncUsersNav();
     updateCounts();
     renderList();
   }

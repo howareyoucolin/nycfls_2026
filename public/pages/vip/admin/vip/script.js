@@ -9,6 +9,7 @@
     clerk: null,
     token: null,
     userEmail: '',
+    viewerRole: '',
     item: null,
     pendingRequests: 0,
   };
@@ -26,6 +27,7 @@
     forbiddenMessage: app.querySelector('[data-forbidden-message]'),
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
+    usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
     form: app.querySelector('[data-admin-form]'),
     saveButton: app.querySelector('[data-admin-save]'),
     title: app.querySelector('[data-editor-title]'),
@@ -105,6 +107,17 @@
   function setFormFeedback(message, isError) {
     els.feedback.textContent = message || '';
     els.feedback.style.color = isError ? '#c64d34' : '#6c5b4d';
+  }
+
+  function syncUsersNav() {
+    if (!state.viewerRole) {
+      return;
+    }
+
+    const isAdmin = state.viewerRole === 'admin';
+    els.usersLinks.forEach((link) => {
+      link.classList.toggle('is-hidden', !isAdmin);
+    });
   }
 
   function formatDateTime(value) {
@@ -251,6 +264,8 @@
     setFormFeedback('正在加载报名资料...', false);
     const data = await apiFetch(`/api/vip-admin-item.php?id=${encodeURIComponent(String(vipId))}`, { method: 'GET' }, '正在获取报名资料...');
     state.item = data && data.data ? data.data.item : null;
+    state.viewerRole = String(data && data.data && data.data.viewer ? data.data.viewer.role || '' : '');
+    syncUsersNav();
     renderForm();
     setFormFeedback('', false);
   }
