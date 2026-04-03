@@ -8,6 +8,7 @@ $adminNavCurrent = isset($adminNavCurrent) ? (string) $adminNavCurrent : 'vips';
     <div>
       <p class="state-kicker">导航</p>
       <h2>管理菜单</h2>
+      <p class="admin-nav-session" data-admin-session-email>logged in as ...</p>
     </div>
     <button
       type="button"

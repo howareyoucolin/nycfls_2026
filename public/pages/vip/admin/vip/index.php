@@ -64,7 +64,7 @@ if ($vipId <= 0) {
           <p data-forbidden-message>Your account does not have access to this page.</p>
         </div>
         <div class="state-actions">
-          <a href="/vip/admin/vips/" class="ghost-button">返回列表</a>
+          <a href="/vip/admin/vips/" class="ghost-button" data-admin-back-link>返回列表</a>
           <button type="button" class="ghost-button" data-admin-signout>退出并切换账号</button>
           <button type="button" class="primary-button" data-admin-retry>重新验证</button>
         </div>
@@ -83,8 +83,11 @@ if ($vipId <= 0) {
         <section class="editor-panel editor-panel--full">
           <form class="editor-card" data-admin-form>
             <div class="editor-top-actions">
-              <a href="/vip/admin/vips/" class="ghost-button editor-back-button">返回列表</a>
-              <button type="submit" class="primary-button" data-admin-save disabled>保存修改</button>
+              <a href="/vip/admin/vips/" class="ghost-button editor-back-button" data-admin-back-link>返回列表</a>
+              <div class="editor-top-actions-group">
+                <button type="submit" class="primary-button" data-admin-save disabled>保存修改</button>
+                <button type="button" class="primary-button is-hidden" data-admin-restore>恢复 VIP</button>
+              </div>
             </div>
 
             <div class="editor-top">
@@ -94,9 +97,22 @@ if ($vipId <= 0) {
               </div>
               <div class="editor-actions">
                 <label class="toggle-pill">
+                  <input type="checkbox" name="is_read" data-admin-read-toggle>
+                  <span>已读</span>
+                </label>
+                <label class="toggle-pill">
                   <input type="checkbox" name="is_approved" data-admin-approve-toggle>
                   <span>审核通过</span>
                 </label>
+                <button type="button" class="ghost-button editor-trash-button" data-admin-delete-trigger aria-label="移到回收站" title="移到回收站">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9 3h6" />
+                    <path d="M5 6h14" />
+                    <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" />
+                    <path d="M10 10v6" />
+                    <path d="M14 10v6" />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -230,6 +246,42 @@ if ($vipId <= 0) {
         <p class="admin-confirm-copy">这份 VIP 资料已经成功更新。</p>
         <div class="admin-confirm-actions">
           <button type="button" class="primary-button" data-admin-saved-close>知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-confirm-modal is-hidden" data-admin-delete-modal aria-hidden="true">
+      <button
+        type="button"
+        class="admin-confirm-backdrop"
+        data-admin-delete-close
+        aria-label="关闭删除确认"
+      ></button>
+      <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="vip-delete-title">
+        <p class="state-kicker">确认操作</p>
+        <h2 id="vip-delete-title">确认移到回收站？</h2>
+        <p class="admin-confirm-copy">这条 VIP 资料会被移到回收站，并从主列表中隐藏。</p>
+        <div class="admin-confirm-actions">
+          <button type="button" class="ghost-button" data-admin-delete-close>取消</button>
+          <button type="button" class="primary-button" data-admin-delete-confirm>确认删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-confirm-modal is-hidden" data-admin-restore-modal aria-hidden="true">
+      <button
+        type="button"
+        class="admin-confirm-backdrop"
+        data-admin-restore-close
+        aria-label="关闭恢复确认"
+      ></button>
+      <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="vip-restore-title">
+        <p class="state-kicker">确认操作</p>
+        <h2 id="vip-restore-title">确认恢复这条 VIP 资料？</h2>
+        <p class="admin-confirm-copy">恢复后，这条资料会重新回到主列表，并可继续编辑。</p>
+        <div class="admin-confirm-actions">
+          <button type="button" class="ghost-button" data-admin-restore-close>取消</button>
+          <button type="button" class="primary-button" data-admin-restore-confirm>确认恢复</button>
         </div>
       </div>
     </div>

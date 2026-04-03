@@ -43,6 +43,7 @@
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
+    sessionEmail: app.querySelector('[data-admin-session-email]'),
   };
 
   const publishableKey = app.dataset.clerkPublishableKey || '';
@@ -124,6 +125,14 @@
     els.usersLinks.forEach((link) => {
       link.classList.toggle('is-hidden', !isAdmin);
     });
+  }
+
+  function syncSessionEmail() {
+    if (!els.sessionEmail) {
+      return;
+    }
+
+    els.sessionEmail.textContent = state.userEmail ? `logged in as ${state.userEmail}` : 'logged in as ...';
   }
 
   function syncBulkReadAction() {
@@ -340,7 +349,7 @@
       const meta = [item.generation ? `${item.generation}后` : '', item.location || ''].filter(Boolean).join(' · ');
 
       return `
-        <a class="signup-item signup-item-link" href="/vip/admin/vip/${Number(item.id)}">
+        <a class="signup-item signup-item-link" href="/vip/admin/vip/${Number(item.id)}${Number(item.is_deleted) === 1 ? '?from=deleted' : ''}">
           <div class="signup-item-top">
             <div>
               <strong>${escapeHtml(item.nickname || `#${item.id}`)}</strong>
@@ -415,6 +424,7 @@
     state.clerk = authState.clerk;
     state.token = authState.token;
     state.userEmail = authState.userEmail || '';
+    syncSessionEmail();
   }
 
   async function fetchItems() {

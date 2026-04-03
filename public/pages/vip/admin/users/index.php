@@ -86,7 +86,7 @@ $adminNavCurrent = 'users';
                 <span>邮箱</span>
                 <input type="email" name="email" placeholder="name@example.com" required>
               </label>
-              <label class="field">
+              <label class="field field-role">
                 <span>角色</span>
                 <select name="role">
                   <option value="manager" selected>管理人员</option>

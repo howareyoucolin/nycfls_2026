@@ -24,9 +24,10 @@ $introText = trim((string) ($payload['intro_text'] ?? ''));
 $contactTypeRaw = trim((string) ($payload['contact_type'] ?? ''));
 $contactInfoRaw = trim((string) ($payload['contact_info'] ?? ''));
 $contactQrcodePathRaw = trim((string) ($payload['contact_qrcode_path'] ?? ''));
+$isRead = filter_var($payload['is_read'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 $isApproved = filter_var($payload['is_approved'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-if ($nickname === '' || $generation === '' || $gender === '' || $location === '' || $joinReason === '' || $introText === '' || $isApproved === null) {
+if ($nickname === '' || $generation === '' || $gender === '' || $location === '' || $joinReason === '' || $introText === '' || $isRead === null || $isApproved === null) {
     api_error('missing_fields', 'Please fill out all required fields.', 422);
 }
 
@@ -110,6 +111,7 @@ try {
             contact_type = :contact_type,
             contact_info = :contact_info,
             contact_qrcode_path = :contact_qrcode_path,
+            is_read = :is_read,
             is_approved = :is_approved,
             approved_by = :approved_by,
             approved_at = :approved_at
@@ -127,6 +129,7 @@ try {
         ':contact_type' => $contactType,
         ':contact_info' => $contactInfo,
         ':contact_qrcode_path' => $contactQrcodePath,
+        ':is_read' => $isRead ? 1 : 0,
         ':is_approved' => $isApproved ? 1 : 0,
         ':approved_by' => $approvedBy,
         ':approved_at' => $approvedAt,

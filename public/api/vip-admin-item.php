@@ -65,7 +65,6 @@ try {
             ) grouped ON grouped.latest_id = latest.id
         ) vm ON vm.vip_id = v.id
         WHERE v.id = :id
-          AND v.is_deleted = 0
         LIMIT 1
         '
     );

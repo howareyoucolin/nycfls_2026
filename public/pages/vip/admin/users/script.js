@@ -27,6 +27,7 @@
     forbiddenMessage: app.querySelector('[data-forbidden-message]'),
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')).filter(Boolean),
+    sessionEmail: app.querySelector('[data-admin-session-email]'),
     form: app.querySelector('[data-user-form]'),
     saveButton: app.querySelector('[data-user-save]'),
     feedback: app.querySelector('[data-user-feedback]'),
@@ -98,6 +99,14 @@
   function setFeedback(message, isError) {
     els.feedback.textContent = message || '';
     els.feedback.style.color = isError ? '#c64d34' : '#6c5b4d';
+  }
+
+  function syncSessionEmail() {
+    if (!els.sessionEmail) {
+      return;
+    }
+
+    els.sessionEmail.textContent = state.userEmail ? `logged in as ${state.userEmail}` : 'logged in as ...';
   }
 
   function openRemoveModal(userId) {
@@ -235,6 +244,7 @@
     state.clerk = authState.clerk;
     state.token = authState.token;
     state.userEmail = authState.userEmail || '';
+    syncSessionEmail();
   }
 
   async function loadUsers() {

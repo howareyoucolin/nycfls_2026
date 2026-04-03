@@ -29,10 +29,15 @@
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
+    sessionEmail: app.querySelector('[data-admin-session-email]'),
+    backLinks: Array.from(app.querySelectorAll('[data-admin-back-link]')),
     form: app.querySelector('[data-admin-form]'),
     saveButton: app.querySelector('[data-admin-save]'),
+    restoreButton: app.querySelector('[data-admin-restore]'),
+    deleteTrigger: app.querySelector('[data-admin-delete-trigger]'),
     title: app.querySelector('[data-editor-title]'),
     feedback: app.querySelector('[data-form-feedback]'),
+    readToggle: app.querySelector('[data-admin-read-toggle]'),
     approveToggle: app.querySelector('[data-admin-approve-toggle]'),
     contactInfoField: app.querySelector('[data-contact-info-field]'),
     qrcodePathField: app.querySelector('[data-qrcode-path-field]'),
@@ -43,6 +48,12 @@
     qrcodeReplaceButton: app.querySelector('[data-admin-qrcode-replace]'),
     savedModal: app.querySelector('[data-admin-saved-modal]'),
     savedCloseButtons: Array.from(app.querySelectorAll('[data-admin-saved-close]')),
+    deleteModal: app.querySelector('[data-admin-delete-modal]'),
+    deleteCloseButtons: Array.from(app.querySelectorAll('[data-admin-delete-close]')),
+    deleteConfirmButton: app.querySelector('[data-admin-delete-confirm]'),
+    restoreModal: app.querySelector('[data-admin-restore-modal]'),
+    restoreCloseButtons: Array.from(app.querySelectorAll('[data-admin-restore-close]')),
+    restoreConfirmButton: app.querySelector('[data-admin-restore-confirm]'),
     metaCreated: app.querySelector('[data-meta-created]'),
     metaUpdated: app.querySelector('[data-meta-updated]'),
     metaApprovedBy: app.querySelector('[data-meta-approved-by]'),
@@ -55,9 +66,22 @@
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const loginRoute = '/vip/admin/login';
   const loginRouteWithTokenInvalid = `${loginRoute}?reason=token_invalid`;
+  const initialParams = new URLSearchParams(window.location.search);
+  const cameFromDeleted = initialParams.get('from') === 'deleted';
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
   const auth = window.VipAdminAuth;
   let qrcodePreviewUrl = '';
+
+  function syncBackLinks(isDeleted) {
+    const shouldGoToTrash = Boolean(isDeleted) || cameFromDeleted;
+    const href = shouldGoToTrash ? '/vip/admin/vips/?status=deleted' : '/vip/admin/vips/';
+    const label = shouldGoToTrash ? '返回回收站' : '返回列表';
+
+    els.backLinks.forEach((link) => {
+      link.href = href;
+      link.textContent = label;
+    });
+  }
 
   function setDrawerOpen(isOpen) {
     const shouldOpen = Boolean(isOpen) && mobileDrawerQuery.matches;
@@ -126,6 +150,26 @@
     document.body.classList.toggle('admin-modal-open', isOpen);
   }
 
+  function setDeleteModalOpen(isOpen) {
+    if (!els.deleteModal) {
+      return;
+    }
+
+    els.deleteModal.classList.toggle('is-hidden', !isOpen);
+    els.deleteModal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    document.body.classList.toggle('admin-modal-open', isOpen);
+  }
+
+  function setRestoreModalOpen(isOpen) {
+    if (!els.restoreModal) {
+      return;
+    }
+
+    els.restoreModal.classList.toggle('is-hidden', !isOpen);
+    els.restoreModal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    document.body.classList.toggle('admin-modal-open', isOpen);
+  }
+
   function getFormSnapshot() {
     return JSON.stringify({
       nickname: els.form.elements.nickname.value.trim(),
@@ -137,6 +181,7 @@
       contact_type: els.form.elements.contact_type.value,
       contact_info: els.form.elements.contact_info.value.trim(),
       contact_qrcode_path: els.form.elements.contact_qrcode_path.value.trim(),
+      is_read: Boolean(els.readToggle.checked),
       is_approved: Boolean(els.approveToggle.checked),
     });
   }
@@ -146,6 +191,43 @@
     if (els.saveButton) {
       els.saveButton.disabled = !isDirty;
     }
+  }
+
+  function syncDeletedActions(isDeleted) {
+    if (els.saveButton) {
+      els.saveButton.classList.toggle('is-hidden', isDeleted);
+    }
+    if (els.restoreButton) {
+      els.restoreButton.classList.toggle('is-hidden', !isDeleted);
+      els.restoreButton.disabled = !isDeleted;
+    }
+    if (els.deleteTrigger) {
+      els.deleteTrigger.classList.toggle('is-hidden', isDeleted);
+    }
+  }
+
+  async function deleteVip() {
+    if (!state.item) {
+      return;
+    }
+
+    await ensureToken();
+    await apiFetch('/api/vip-admin-delete.php', {
+      method: 'POST',
+      body: JSON.stringify({ id: state.item.id }),
+    }, '正在移到回收站...');
+  }
+
+  async function restoreVip() {
+    if (!state.item) {
+      return;
+    }
+
+    await ensureToken();
+    await apiFetch('/api/vip-admin-restore.php', {
+      method: 'POST',
+      body: JSON.stringify({ id: state.item.id }),
+    }, '正在恢复 VIP...');
   }
 
   function clearQrcodePreview() {
@@ -223,6 +305,14 @@
     });
   }
 
+  function syncSessionEmail() {
+    if (!els.sessionEmail) {
+      return;
+    }
+
+    els.sessionEmail.textContent = state.userEmail ? `logged in as ${state.userEmail}` : 'logged in as ...';
+  }
+
   function formatDateTime(value, fallback) {
     if (!value) {
       return fallback || '--';
@@ -251,6 +341,10 @@
         control.disabled = true;
         return;
       }
+      if (control === els.restoreButton) {
+        control.disabled = enabled;
+        return;
+      }
 
       control.disabled = !enabled;
     });
@@ -264,6 +358,11 @@
       els.form.reset();
       setFormFeedback('', false);
       setEditorEnabled(false);
+      syncBackLinks(false);
+      syncDeletedActions(false);
+      if (els.deleteTrigger) {
+        els.deleteTrigger.disabled = true;
+      }
       state.initialSnapshot = '';
       return;
     }
@@ -279,6 +378,7 @@
     els.form.elements.contact_info.value = item.contact_info || '';
     els.form.elements.contact_qrcode_path.value = item.contact_qrcode_path || '';
     els.form.elements.intro_text.value = item.intro_text || '';
+    els.readToggle.checked = Number(item.is_read) === 1;
     els.approveToggle.checked = Number(item.is_approved) === 1;
 
     const isQrcode = item.contact_type === 'qrcode';
@@ -305,9 +405,21 @@
       [item.os_name, item.os_version].filter(Boolean).join(' '),
     ].filter(Boolean).join(' · ') || '暂无数据';
 
-    setEditorEnabled(true);
+    const isDeleted = Number(item.is_deleted) === 1;
+    syncBackLinks(isDeleted);
+    syncDeletedActions(isDeleted);
+    setEditorEnabled(!isDeleted);
+    if (els.deleteTrigger) {
+      els.deleteTrigger.disabled = isDeleted;
+    }
     state.initialSnapshot = getFormSnapshot();
     syncDirtyState();
+
+    if (isDeleted) {
+      setFormFeedback('该资料当前位于回收站中，暂时只读。', false);
+    } else {
+      setFormFeedback('', false);
+    }
   }
 
   async function apiFetch(path, options, reason) {
@@ -365,6 +477,7 @@
     state.clerk = authState.clerk;
     state.token = authState.token;
     state.userEmail = authState.userEmail || '';
+    syncSessionEmail();
   }
 
   async function fetchItem() {
@@ -374,7 +487,6 @@
     state.viewerRole = String(data && data.data && data.data.viewer ? data.data.viewer.role || '' : '');
     syncUsersNav();
     renderForm();
-    setFormFeedback('', false);
   }
 
   async function refreshDashboard() {
@@ -398,7 +510,8 @@
       if (error && error.status === 404) {
         auth.debugLog('vip refreshDashboard missing item');
         els.forbiddenTitle.textContent = '未找到该报名资料';
-        els.forbiddenMessage.textContent = '请返回 Vips 列表后重新选择。';
+        els.forbiddenMessage.textContent = cameFromDeleted ? '请返回回收站后重新选择。' : '请返回 Vips 列表后重新选择。';
+        syncBackLinks(false);
         setView('forbidden');
         return;
       }
@@ -470,6 +583,14 @@
         setSavedModalOpen(false);
         return;
       }
+      if (els.deleteModal && !els.deleteModal.classList.contains('is-hidden')) {
+        setDeleteModalOpen(false);
+        return;
+      }
+      if (els.restoreModal && !els.restoreModal.classList.contains('is-hidden')) {
+        setRestoreModalOpen(false);
+        return;
+      }
       closeDrawer();
     }
   });
@@ -491,6 +612,64 @@
       setSavedModalOpen(false);
     });
   });
+
+  if (els.deleteTrigger) {
+    els.deleteTrigger.addEventListener('click', () => {
+      setDeleteModalOpen(true);
+    });
+  }
+
+  els.deleteCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setDeleteModalOpen(false);
+    });
+  });
+
+  if (els.deleteConfirmButton) {
+    els.deleteConfirmButton.addEventListener('click', async () => {
+      els.deleteConfirmButton.disabled = true;
+      setFormFeedback('正在移到回收站...', false);
+
+      try {
+        await deleteVip();
+        window.location.href = '/vip/admin/vips/?status=deleted';
+      } catch (error) {
+        setDeleteModalOpen(false);
+        setFormFeedback(error.message || '删除失败。', true);
+      } finally {
+        els.deleteConfirmButton.disabled = false;
+      }
+    });
+  }
+
+  if (els.restoreButton) {
+    els.restoreButton.addEventListener('click', () => {
+      setRestoreModalOpen(true);
+    });
+  }
+
+  els.restoreCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setRestoreModalOpen(false);
+    });
+  });
+
+  if (els.restoreConfirmButton) {
+    els.restoreConfirmButton.addEventListener('click', async () => {
+      els.restoreConfirmButton.disabled = true;
+      setFormFeedback('正在恢复 VIP...', false);
+
+      try {
+        await restoreVip();
+        window.location.href = `/vip/admin/vip/${encodeURIComponent(String(vipId))}`;
+      } catch (error) {
+        setRestoreModalOpen(false);
+        setFormFeedback(error.message || '恢复失败。', true);
+      } finally {
+        els.restoreConfirmButton.disabled = false;
+      }
+    });
+  }
 
   els.form.elements.contact_type.addEventListener('change', () => {
     const isQrcode = els.form.elements.contact_type.value === 'qrcode';
@@ -562,6 +741,7 @@
     field.addEventListener('change', syncDirtyState);
   });
 
+  els.readToggle.addEventListener('change', syncDirtyState);
   els.approveToggle.addEventListener('change', syncDirtyState);
 
   els.form.addEventListener('submit', async (event) => {
@@ -582,6 +762,7 @@
       contact_type: els.form.elements.contact_type.value,
       contact_info: els.form.elements.contact_info.value.trim(),
       contact_qrcode_path: els.form.elements.contact_qrcode_path.value.trim(),
+      is_read: els.readToggle.checked,
       is_approved: els.approveToggle.checked,
     };
 

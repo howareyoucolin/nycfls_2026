@@ -532,6 +532,14 @@
   color: #2d241c;
 }
 
+.admin-nav-session {
+  margin: 8px 0 0;
+  color: #7f6b5a;
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
 .admin-nav-links {
   display: grid;
   gap: 10px;
@@ -701,11 +709,25 @@
 
 .toolbar-users {
   margin-top: 20px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: end;
+}
+
+.toolbar-users .field:first-child {
+  grid-column: 1 / -1;
+}
+
+.toolbar-users .field-role {
+  grid-column: 1 / -1;
+}
+
+.toolbar-users .toolbar-actions {
+  justify-content: flex-start;
 }
 
 .sidebar-stats {
@@ -1068,6 +1090,7 @@
 }
 
 .editor-actions {
+  display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -1081,12 +1104,37 @@
   margin-bottom: 16px;
 }
 
+.editor-top-actions-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .editor-heading {
   min-width: 0;
 }
 
 .editor-back-button {
   flex-shrink: 0;
+}
+
+.editor-trash-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.editor-trash-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .editor-section-header {
@@ -1267,6 +1315,10 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(127, 107, 90, 0.1);
+  background: rgba(255, 251, 245, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
   color: #544338;
 }
 
@@ -1416,8 +1468,16 @@ body.admin-modal-open {
   }
 
   .toolbar-users {
-    grid-template-columns: minmax(0, 1.8fr) minmax(140px, 180px) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
+  }
+
+  .toolbar-users .field:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .toolbar-users .field-role {
+    grid-column: 1;
   }
 
   .editor-grid {
@@ -1577,20 +1637,25 @@ body.admin-modal-open {
     margin-bottom: 14px;
   }
 
+  .editor-top-actions-group {
+    display: block;
+  }
+
   .editor-top h2 {
     font-size: 18px;
     line-height: 1.2;
   }
 
   .editor-actions {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 10px;
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(127, 107, 90, 0.1);
+    overflow: hidden;
   }
 
   .editor-back-button,
@@ -1601,9 +1666,22 @@ body.admin-modal-open {
   }
 
   .toggle-pill {
-    min-height: 44px;
-    padding: 0 12px;
+    min-height: 40px;
+    padding: 0 10px;
     justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+  }
+
+  .toggle-pill span {
+    white-space: nowrap;
+  }
+
+  .editor-trash-button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
   }
 
   .editor-section-header {
