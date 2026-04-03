@@ -44,9 +44,10 @@
 
   const vipId = Number(app.dataset.adminVipId || 0);
   const publishableKey = app.dataset.clerkPublishableKey || '';
-  const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   const loginRoute = '/vip/admin/login';
+  const loginRouteWithAuthFailure = `${loginRoute}?reason=auth_failed`;
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
+  const auth = window.VipAdminAuth;
 
   function setDrawerOpen(isOpen) {
     const shouldOpen = Boolean(isOpen) && mobileDrawerQuery.matches;
@@ -241,21 +242,17 @@
   }
 
   async function ensureToken() {
-    if (!state.clerk) {
-      throw new Error('Clerk is not ready.');
+    if (state.token) {
+      return;
     }
 
-    const session = state.clerk.session;
-    if (!session || typeof session.getToken !== 'function') {
-      throw new Error('No active Clerk session.');
-    }
-
-    const token = await session.getToken();
-    if (!token) {
+    const authState = await auth.requireToken(publishableKey, 'auth_failed');
+    if (!authState) {
       throw new Error('Unable to retrieve Clerk token.');
     }
 
-    state.token = token;
+    state.clerk = authState.clerk;
+    state.token = authState.token;
   }
 
   async function checkWhitelist() {
@@ -298,7 +295,7 @@
       }
 
       if (error && error.status === 401) {
-        window.location.href = loginRoute;
+        window.location.href = loginRouteWithAuthFailure;
         return;
       }
 
@@ -308,74 +305,18 @@
     }
   }
 
-  function createClerkInstance() {
-    if (!window.Clerk) {
-      throw new Error('Clerk script is unavailable.');
-    }
-    return window.Clerk;
-  }
-
-  function loadScript(src, attributes) {
-    return new Promise((resolve, reject) => {
-      if (window.Clerk) {
-        resolve();
-        return;
-      }
-
-      const existing = document.querySelector(`script[src="${src}"]`);
-      if (existing) {
-        existing.addEventListener('load', resolve, { once: true });
-        existing.addEventListener('error', reject, { once: true });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = src;
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      if (attributes && typeof attributes === 'object') {
-        Object.entries(attributes).forEach(([name, value]) => {
-          if (typeof value === 'string' && value !== '') {
-            script.setAttribute(name, value);
-          }
-        });
-      }
-      script.addEventListener('load', resolve, { once: true });
-      script.addEventListener('error', () => reject(new Error('Failed to load Clerk script.')), { once: true });
-      document.head.appendChild(script);
-    });
-  }
-
   async function initDashboardSession() {
-    if (!publishableKey) {
-      throw new Error('缺少 Clerk publishable key，请先直接在代码里补上。');
-    }
-
-    await loadScript(clerkScriptSrc, {
-      'data-clerk-publishable-key': publishableKey,
-    });
-
-    state.clerk = createClerkInstance();
-
-    if (typeof state.clerk.load === 'function') {
-      await state.clerk.load({
-        publishableKey,
-      });
-    }
-
-    if (!state.clerk.session) {
-      window.location.href = loginRoute;
+    const sessionState = await auth.requireSession(publishableKey, 'auth_failed');
+    if (!sessionState) {
       return false;
     }
 
+    state.clerk = sessionState.clerk;
     return true;
   }
 
   async function signOut() {
-    if (state.clerk && typeof state.clerk.signOut === 'function') {
-      await state.clerk.signOut();
-    }
-
+    await auth.signOut(publishableKey);
     state.token = null;
     state.item = null;
     els.signoutButtons.forEach((button) => {

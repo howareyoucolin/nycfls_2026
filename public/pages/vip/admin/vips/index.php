@@ -132,6 +132,7 @@ $publishableKey = vip_admin_get_publishable_key();
       </div>
     </section>
   </main>
+  <script src="/pages/vip/admin/auth.js" defer></script>
   <script src="/pages/vip/admin/vips/script.js" defer></script>
 </body>
 </html>

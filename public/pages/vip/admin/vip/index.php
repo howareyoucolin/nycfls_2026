@@ -213,6 +213,7 @@ if ($vipId <= 0) {
       </div>
     </section>
   </main>
+  <script src="/pages/vip/admin/auth.js" defer></script>
   <script src="/pages/vip/admin/vip/script.js" defer></script>
 </body>
 </html>
