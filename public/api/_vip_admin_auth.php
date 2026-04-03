@@ -122,13 +122,43 @@ function vip_admin_get_user_id_whitelist(): array
     ];
 }
 
+function vip_admin_get_authorization_header_value(): string
+{
+    $direct = trim((string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
+    if ($direct !== '') {
+        return $direct;
+    }
+
+    // Apache + CGI / some rewrite stacks strip HTTP_AUTHORIZATION unless configured; try fallbacks.
+    $redirect = trim((string) ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? ''));
+    if ($redirect !== '') {
+        return $redirect;
+    }
+
+    if (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (is_array($headers)) {
+            foreach ($headers as $name => $value) {
+                if (strcasecmp((string) $name, 'Authorization') === 0) {
+                    return trim((string) $value);
+                }
+            }
+        }
+    }
+
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        if (is_array($headers)) {
+            return trim((string) ($headers['Authorization'] ?? $headers['authorization'] ?? ''));
+        }
+    }
+
+    return '';
+}
+
 function vip_admin_get_bearer_token(): ?string
 {
-    $header = trim((string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
-    if ($header === '' && function_exists('getallheaders')) {
-        $headers = getallheaders();
-        $header = trim((string) ($headers['Authorization'] ?? $headers['authorization'] ?? ''));
-    }
+    $header = vip_admin_get_authorization_header_value();
 
     if (preg_match('/^Bearer\s+(.+)$/i', $header, $matches) !== 1) {
         return null;

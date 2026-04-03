@@ -45,7 +45,7 @@
   const vipId = Number(app.dataset.adminVipId || 0);
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const loginRoute = '/vip/admin/login';
-  const loginRouteWithAuthFailure = `${loginRoute}?reason=auth_failed`;
+  const loginRouteWithTokenInvalid = `${loginRoute}?reason=token_invalid`;
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
   const auth = window.VipAdminAuth;
 
@@ -104,28 +104,6 @@
   function setFormFeedback(message, isError) {
     els.feedback.textContent = message || '';
     els.feedback.style.color = isError ? '#c64d34' : '#6c5b4d';
-  }
-
-  function buildForbiddenMessage(error) {
-    const baseMessage = error && error.message ? error.message : '当前账号没有后台权限。';
-    const payload = error && error.payload && error.payload.data ? error.payload.data : null;
-
-    if (!payload) {
-      return baseMessage;
-    }
-
-    const details = [];
-    const emails = Array.isArray(payload.emails) ? payload.emails.filter(Boolean) : [];
-
-    if (emails.length) {
-      details.push(`Backend emails: ${emails.join(', ')}`);
-    }
-
-    if (payload.user_id) {
-      details.push(`Clerk user_id: ${payload.user_id}`);
-    }
-
-    return details.length ? `${baseMessage}\n${details.join('\n')}` : baseMessage;
   }
 
   function formatDateTime(value) {
@@ -253,7 +231,7 @@
     }
 
     auth.debugLog('vip ensureToken start');
-    const authState = await auth.requireToken(publishableKey, 'auth_failed');
+    const authState = await auth.requireToken(publishableKey, 'need_login');
     if (!authState) {
       throw new Error('Unable to retrieve Clerk token.');
     }
@@ -290,8 +268,7 @@
     } catch (error) {
       if (error && error.status === 403) {
         auth.debugLog('vip refreshDashboard forbidden');
-        els.forbiddenTitle.textContent = '当前账号没有后台权限';
-        els.forbiddenMessage.textContent = buildForbiddenMessage(error);
+        auth.setWhitelistDeniedView(els.forbiddenTitle, els.forbiddenMessage, { setDocumentTitle: true });
         setView('forbidden');
         return;
       }
@@ -305,8 +282,8 @@
       }
 
       if (error && error.status === 401) {
-        auth.debugLog(`vip refreshDashboard redirect login -> ${loginRouteWithAuthFailure}`);
-        window.location.href = loginRouteWithAuthFailure;
+        auth.debugLog(`vip refreshDashboard redirect login -> ${loginRouteWithTokenInvalid}`);
+        window.location.href = loginRouteWithTokenInvalid;
         return;
       }
 
@@ -319,7 +296,7 @@
 
   async function initDashboardSession() {
     auth.debugLog('vip initDashboardSession start');
-    const sessionState = await auth.requireSession(publishableKey, 'auth_failed');
+    const sessionState = await auth.requireSession(publishableKey, 'need_login');
     if (!sessionState) {
       return false;
     }

@@ -97,7 +97,7 @@
   }
 
   function redirectToLogin(reason) {
-    const nextUrl = buildLoginUrl(reason || 'auth_failed');
+    const nextUrl = buildLoginUrl(reason || 'need_login');
     debugLog(`redirectToLogin -> ${nextUrl}`);
     window.location.href = nextUrl;
   }
@@ -167,7 +167,7 @@
 
     if (!session || typeof session.getToken !== 'function') {
       debugLog('requireSession missing session');
-      redirectToLogin(reason || 'auth_failed');
+      redirectToLogin(reason || 'need_login');
       return null;
     }
 
@@ -184,7 +184,7 @@
     const token = await result.session.getToken();
     if (!token) {
       debugLog('requireToken missing token');
-      redirectToLogin(reason || 'auth_failed');
+      redirectToLogin('token_invalid');
       return null;
     }
 
@@ -214,6 +214,21 @@
     debugLog('signOut complete');
   }
 
+  function setWhitelistDeniedView(titleEl, messageEl, options) {
+    const title = 'Access denied';
+    const message =
+      'Your account is not on the VIP admin whitelist. If you need access, contact an administrator.';
+    if (titleEl) {
+      titleEl.textContent = title;
+    }
+    if (messageEl) {
+      messageEl.textContent = message;
+    }
+    if (options && options.setDocumentTitle) {
+      document.title = `${title} · VIP Admin`;
+    }
+  }
+
   window.VipAdminAuth = {
     buildLoginUrl,
     clearDebugLog,
@@ -223,6 +238,7 @@
     loadClerk,
     requireSession,
     requireToken,
+    setWhitelistDeniedView,
     signOut,
   };
 })();
