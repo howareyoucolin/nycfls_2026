@@ -69,7 +69,7 @@ if ($contactType !== null && $contactType !== 'qrcode' && $contactInfo === null)
 try {
     $pdo = db();
 
-    $existingStatement = $pdo->prepare('SELECT is_approved FROM vips WHERE id = :id LIMIT 1');
+    $existingStatement = $pdo->prepare('SELECT is_approved FROM vips WHERE id = :id AND is_deleted = 0 LIMIT 1');
     $existingStatement->execute([':id' => $id]);
     $existingRow = $existingStatement->fetch();
 

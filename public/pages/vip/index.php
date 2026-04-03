@@ -40,7 +40,7 @@ function excerpt_text(string $text, int $limit = 40): array
 }
 
 try {
-    $countStatement = db()->query('SELECT COUNT(*) FROM vips WHERE is_approved = 1');
+    $countStatement = db()->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_approved = 1');
     $totalRows = (int) $countStatement->fetchColumn();
 
     $listStatement = db()->prepare(
@@ -55,10 +55,13 @@ try {
             contact_type,
             contact_info,
             contact_qrcode_path,
+            is_deleted,
+            is_read,
             is_approved,
             created_at
         FROM vips
-        WHERE is_approved = 1
+        WHERE is_deleted = 0
+          AND is_approved = 1
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset'
     );

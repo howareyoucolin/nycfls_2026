@@ -17,6 +17,15 @@ if ($id <= 0) {
 try {
     $pdo = db();
 
+    $markReadStatement = $pdo->prepare(
+        'UPDATE vips
+        SET is_read = 1
+        WHERE id = :id AND is_deleted = 0'
+    );
+    $markReadStatement->execute([
+        ':id' => $id,
+    ]);
+
     $statement = $pdo->prepare(
         '
         SELECT
@@ -30,6 +39,8 @@ try {
             v.contact_type,
             v.contact_info,
             v.contact_qrcode_path,
+            v.is_deleted,
+            v.is_read,
             v.is_approved,
             v.approved_by,
             v.approved_at,
@@ -54,6 +65,7 @@ try {
             ) grouped ON grouped.latest_id = latest.id
         ) vm ON vm.vip_id = v.id
         WHERE v.id = :id
+          AND v.is_deleted = 0
         LIMIT 1
         '
     );

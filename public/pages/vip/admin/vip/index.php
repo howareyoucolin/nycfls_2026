@@ -82,10 +82,14 @@ if ($vipId <= 0) {
 
         <section class="editor-panel editor-panel--full">
           <form class="editor-card" data-admin-form>
+            <div class="editor-top-actions">
+              <a href="/vip/admin/vips/" class="ghost-button editor-back-button">返回列表</a>
+              <button type="submit" class="primary-button" data-admin-save disabled>保存修改</button>
+            </div>
+
             <div class="editor-top">
-              <div>
+              <div class="editor-heading">
                 <p class="state-kicker">Editor</p>
-                <a href="/vip/admin/vips/" class="editor-back-link">返回 Vips 列表</a>
                 <h2 data-editor-title>加载中...</h2>
               </div>
               <div class="editor-actions">
@@ -93,10 +97,13 @@ if ($vipId <= 0) {
                   <input type="checkbox" name="is_approved" data-admin-approve-toggle>
                   <span>审核通过</span>
                 </label>
-                <button type="submit" class="primary-button" data-admin-save disabled>保存修改</button>
               </div>
             </div>
 
+            <div class="editor-section-header">
+              <p class="editor-section-kicker">基础资料</p>
+              <h3>会员信息</h3>
+            </div>
             <div class="editor-grid">
               <label class="field">
                 <span>昵称</span>
@@ -140,22 +147,43 @@ if ($vipId <= 0) {
                 <span>联系方式内容</span>
                 <input type="text" name="contact_info" disabled>
               </label>
-              <label class="field" data-qrcode-path-field>
-                <span>二维码路径</span>
-                <input type="text" name="contact_qrcode_path" disabled>
-              </label>
             </div>
 
-            <label class="field">
-              <span>自我介绍</span>
+            <div class="field admin-upload-field is-hidden" data-qrcode-path-field>
+              <span>二维码</span>
+              <input type="hidden" name="contact_qrcode_path" value="">
+              <div class="upload-card admin-upload-card">
+                <div class="upload-copy">
+                  <p class="upload-title">上传二维码</p>
+                  <p class="hint">支持 JPG、PNG、GIF、WEBP，上传后会立即显示预览。</p>
+                </div>
+                <label class="upload-dropzone" data-admin-qrcode-dropzone>
+                  <input type="file" accept="image/*" data-admin-qrcode-file disabled>
+                  <span class="upload-icon">+</span>
+                  <span class="upload-label">选择二维码图片</span>
+                  <span class="upload-subtext">点击上传新的二维码</span>
+                </label>
+                <div class="qrcode-preview" data-admin-qrcode-preview hidden>
+                  <img src="" alt="二维码预览" class="qrcode-preview-image" data-admin-qrcode-preview-image>
+                  <div class="admin-upload-actions">
+                    <button type="button" class="ghost-button" data-admin-qrcode-replace>重新选择</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="editor-section-header">
+              <p class="editor-section-kicker">自述内容</p>
+              <h3>自我介绍</h3>
+            </div>
+            <label class="field field--plain-label">
               <textarea name="intro_text" rows="8" required disabled></textarea>
             </label>
 
-            <div class="qrcode-preview-card is-hidden" data-qrcode-preview-card>
-              <p class="preview-title">二维码预览</p>
-              <img src="" alt="二维码预览" data-qrcode-preview-image>
+            <div class="editor-section-header">
+              <p class="editor-section-kicker">系统记录</p>
+              <h3>审核与设备信息</h3>
             </div>
-
             <div class="meta-grid">
               <div class="meta-card">
                 <span class="meta-label">创建时间</span>
@@ -188,6 +216,23 @@ if ($vipId <= 0) {
         </section>
       </div>
     </section>
+
+    <div class="admin-confirm-modal is-hidden" data-admin-saved-modal aria-hidden="true">
+      <button
+        type="button"
+        class="admin-confirm-backdrop"
+        data-admin-saved-close
+        aria-label="关闭提示"
+      ></button>
+      <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="vip-saved-title">
+        <p class="state-kicker">保存成功</p>
+        <h2 id="vip-saved-title">修改已保存</h2>
+        <p class="admin-confirm-copy">这份 VIP 资料已经成功更新。</p>
+        <div class="admin-confirm-actions">
+          <button type="button" class="primary-button" data-admin-saved-close>知道了</button>
+        </div>
+      </div>
+    </div>
   </main>
   <script src="/pages/vip/admin/auth.js" defer></script>
   <script src="/pages/vip/admin/vip/script.js" defer></script>

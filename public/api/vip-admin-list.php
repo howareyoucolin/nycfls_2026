@@ -9,10 +9,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 
 $claims = vip_admin_require_auth();
 
-$status = trim((string) ($_GET['status'] ?? 'all'));
-$allowedStatuses = ['all', 'approved', 'pending'];
+$status = trim((string) ($_GET['status'] ?? 'unread'));
+$allowedStatuses = ['all', 'approved', 'not_approved', 'unread', 'deleted'];
 if (!in_array($status, $allowedStatuses, true)) {
-    $status = 'all';
+    $status = 'unread';
 }
 
 $search = trim((string) ($_GET['search'] ?? ''));
@@ -31,14 +31,27 @@ if ($page <= 0) {
 $whereParts = [];
 $params = [];
 
-if ($status === 'approved') {
-    $whereParts[] = 'v.is_approved = 1';
-} elseif ($status === 'pending') {
-    $whereParts[] = 'v.is_approved = 0';
+if ($status === 'deleted') {
+    $whereParts[] = 'v.is_deleted = 1';
+} else {
+    $whereParts[] = 'v.is_deleted = 0';
+
+    if ($status === 'approved') {
+        $whereParts[] = 'v.is_approved = 1';
+    } elseif ($status === 'not_approved') {
+        $whereParts[] = 'v.is_approved = 0';
+    } elseif ($status === 'unread') {
+        $whereParts[] = 'v.is_read = 0';
+    }
 }
 
 if ($searchTerm !== null) {
-    $whereParts[] = '(v.nickname LIKE :search OR v.location LIKE :search OR v.join_reason LIKE :search OR v.intro_text LIKE :search)';
+    if (ctype_digit($search)) {
+        $whereParts[] = '(v.nickname LIKE :search OR CAST(v.id AS CHAR) = :search_id)';
+        $params[':search_id'] = $search;
+    } else {
+        $whereParts[] = 'v.nickname LIKE :search';
+    }
     $params[':search'] = $searchTerm;
 }
 
@@ -72,6 +85,8 @@ try {
             v.contact_type,
             v.contact_info,
             v.contact_qrcode_path,
+            v.is_deleted,
+            v.is_read,
             v.is_approved,
             v.approved_by,
             v.approved_at,
@@ -109,9 +124,11 @@ try {
     $items = $statement->fetchAll();
 
     $counts = [
-        'all' => (int) $pdo->query('SELECT COUNT(*) FROM vips')->fetchColumn(),
-        'approved' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_approved = 1')->fetchColumn(),
-        'pending' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_approved = 0')->fetchColumn(),
+        'all' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0')->fetchColumn(),
+        'approved' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_approved = 1')->fetchColumn(),
+        'not_approved' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_approved = 0')->fetchColumn(),
+        'unread' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_read = 0')->fetchColumn(),
+        'deleted' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 1')->fetchColumn(),
     ];
 
     api_ok([

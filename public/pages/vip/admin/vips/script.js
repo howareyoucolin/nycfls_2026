@@ -11,8 +11,8 @@
     userEmail: '',
     viewerRole: '',
     items: [],
-    counts: { all: 0, pending: 0, approved: 0 },
-    status: 'pending',
+    counts: { all: 0, approved: 0, not_approved: 0, unread: 0, deleted: 0 },
+    status: 'unread',
     page: 1,
     perPage: 50,
     totalItems: 0,
@@ -31,12 +31,14 @@
     dashboard: app.querySelector('[data-dashboard]'),
     forbiddenTitle: app.querySelector('[data-forbidden-title]'),
     forbiddenMessage: app.querySelector('[data-forbidden-message]'),
+    searchForm: app.querySelector('[data-admin-search-form]'),
     search: app.querySelector('[data-admin-search]'),
     counts: app.querySelector('[data-admin-counts]'),
     list: app.querySelector('[data-signup-list]'),
     paginationTop: app.querySelector('[data-pagination-top]'),
     pagination: app.querySelector('[data-pagination]'),
     listFeedback: app.querySelector('[data-list-feedback]'),
+    markAllReadButton: app.querySelector('[data-admin-mark-all-read]'),
     refreshButton: app.querySelector('[data-admin-refresh]'),
     retryButton: app.querySelector('[data-admin-retry]'),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
@@ -49,7 +51,7 @@
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
   const initialParams = new URLSearchParams(window.location.search);
   const initialPage = Number(initialParams.get('page') || '1');
-  const defaultStatus = 'pending';
+  const defaultStatus = 'unread';
   const auth = window.VipAdminAuth;
 
   if (Number.isFinite(initialPage) && initialPage > 0) {
@@ -124,6 +126,16 @@
     });
   }
 
+  function syncBulkReadAction() {
+    if (!els.markAllReadButton) {
+      return;
+    }
+
+    const shouldShow = state.status === 'unread' && Number(state.counts.unread || 0) > 0;
+    els.markAllReadButton.classList.toggle('is-hidden', !shouldShow);
+    els.markAllReadButton.disabled = !shouldShow;
+  }
+
   function formatDateTime(value) {
     if (!value) {
       return '--';
@@ -158,8 +170,10 @@
     const currentStatus = state.status || defaultStatus;
     const chips = [
       { value: 'all', label: '全部', count: state.counts.all || 0 },
-      { value: 'pending', label: '待审核', count: state.counts.pending || 0 },
       { value: 'approved', label: '已审核', count: state.counts.approved || 0 },
+      { value: 'not_approved', label: '未审核', count: state.counts.not_approved || 0 },
+      { value: 'unread', label: '未读', count: state.counts.unread || 0 },
+      { value: 'deleted', label: '回收站', count: state.counts.deleted || 0 },
     ];
 
     els.counts.innerHTML = chips.map((chip) => `
@@ -212,9 +226,14 @@
     if (state.totalItems <= 0) {
       paginationNodes.forEach((node) => {
         node.innerHTML = '';
+        node.classList.add('is-hidden');
       });
       return;
     }
+
+    paginationNodes.forEach((node) => {
+      node.classList.remove('is-hidden');
+    });
 
     const paginationItems = [];
 
@@ -286,16 +305,38 @@
 
   function renderList() {
     if (!state.items.length) {
-      els.list.innerHTML = '';
+      els.list.innerHTML = `
+        <div class="signup-empty-state">
+          <div class="signup-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 8h16v11H4z" />
+              <path d="M9 8V6h6v2" />
+              <path d="M4 11l4 3h8l4-3" />
+            </svg>
+          </div>
+          <p class="signup-empty-title">当前筛选条件下没有数据。</p>
+        </div>
+      `;
       renderPagination();
-      setListFeedback('当前筛选条件下没有数据。', false);
+      setListFeedback('', false);
       return;
     }
 
     setListFeedback('', false);
     els.list.innerHTML = state.items.map((item) => {
-      const statusClass = Number(item.is_approved) === 1 ? 'is-approved' : 'is-pending';
-      const statusLabel = Number(item.is_approved) === 1 ? '已审核' : '待审核';
+      const badges = [];
+      if (Number(item.is_deleted) === 1) {
+        badges.push({ className: 'is-deleted', label: '已删除' });
+      } else {
+        badges.push({
+          className: Number(item.is_approved) === 1 ? 'is-approved' : 'is-pending',
+          label: Number(item.is_approved) === 1 ? '已审核' : '未审核',
+        });
+        badges.push({
+          className: Number(item.is_read) === 1 ? 'is-read' : 'is-unread',
+          label: Number(item.is_read) === 1 ? '已读' : '未读',
+        });
+      }
       const meta = [item.generation ? `${item.generation}后` : '', item.location || ''].filter(Boolean).join(' · ');
 
       return `
@@ -305,7 +346,9 @@
               <strong>${escapeHtml(item.nickname || `#${item.id}`)}</strong>
               <div>${escapeHtml(meta || '未填写')}</div>
             </div>
-            <span class="signup-item-status ${statusClass}">${statusLabel}</span>
+            <div class="signup-item-statuses">
+              ${badges.map((badge) => `<span class="signup-item-status ${badge.className}">${escapeHtml(badge.label)}</span>`).join('')}
+            </div>
           </div>
           <div class="signup-item-meta">
             <span>#${Number(item.id)}</span>
@@ -394,6 +437,7 @@
     state.totalPages = Number(data.data && data.data.pagination ? data.data.pagination.total_pages : 1) || 1;
     syncUrl();
     syncUsersNav();
+    syncBulkReadAction();
     updateCounts();
     renderList();
   }
@@ -488,6 +532,27 @@
     });
   });
 
+  if (els.markAllReadButton) {
+    els.markAllReadButton.addEventListener('click', async () => {
+      els.markAllReadButton.disabled = true;
+      setListFeedback('正在将全部未读标记为已读...', false);
+
+      try {
+        await ensureToken();
+        await apiFetch('/api/vip-admin-mark-all-read.php', {
+          method: 'POST',
+          body: JSON.stringify({}),
+        }, '正在批量标记为已读...');
+        await fetchItems();
+        setListFeedback('全部未读已标记为已读。', false);
+      } catch (error) {
+        setListFeedback(error.message || '批量标记失败。', true);
+      } finally {
+        syncBulkReadAction();
+      }
+    });
+  }
+
   els.retryButton.addEventListener('click', () => {
     refreshDashboard().catch((error) => {
       if (error && error.status === 403) {
@@ -509,15 +574,15 @@
     });
   });
 
-  els.search.addEventListener('input', () => {
-    window.clearTimeout(els.search._debounceTimer);
-    els.search._debounceTimer = window.setTimeout(() => {
+  if (els.searchForm) {
+    els.searchForm.addEventListener('submit', (event) => {
+      event.preventDefault();
       state.page = 1;
       refreshDashboard().catch((error) => {
         setListFeedback(error.message || '搜索失败。', true);
       });
-    }, 250);
-  });
+    });
+  }
 
   [els.paginationTop, els.pagination].filter(Boolean).forEach((paginationNode) => {
     paginationNode.addEventListener('click', (event) => {
@@ -545,7 +610,7 @@
 
   if (initialParams.has('status')) {
     const initialStatus = initialParams.get('status') || defaultStatus;
-    if (['all', 'pending', 'approved'].includes(initialStatus)) {
+    if (['all', 'approved', 'not_approved', 'unread', 'deleted'].includes(initialStatus)) {
       state.status = initialStatus;
     }
   } else {
@@ -572,6 +637,7 @@
   });
 
   updateCounts();
+  syncBulkReadAction();
   setView('dashboard');
 
   initDashboardSession()

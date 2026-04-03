@@ -93,12 +93,28 @@ $adminNavCurrent = 'vips';
             <span>已审核 0</span>
           </div>
 
-          <div class="toolbar">
+          <div class="toolbar-actions">
+            <button
+              type="button"
+              class="ghost-button admin-bulk-read-button is-hidden"
+              data-admin-mark-all-read
+            >全部标记为已读</button>
+          </div>
+
+          <form class="toolbar" data-admin-search-form>
             <label class="field">
               <span>搜索</span>
-              <input type="search" placeholder="昵称、地点、原因、自我介绍" data-admin-search>
+              <input type="search" placeholder="昵称或编号" data-admin-search>
             </label>
-          </div>
+            <div class="toolbar-actions">
+              <button type="submit" class="refresh-icon-button" aria-label="搜索" title="搜索">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6" />
+                  <path d="M20 20l-4.2-4.2" />
+                </svg>
+              </button>
+            </div>
+          </form>
 
           <div class="pagination-bar" data-pagination-top></div>
           <div class="signup-list" data-signup-list></div>

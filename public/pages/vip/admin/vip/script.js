@@ -11,6 +11,7 @@
     userEmail: '',
     viewerRole: '',
     item: null,
+    initialSnapshot: '',
     pendingRequests: 0,
   };
 
@@ -33,10 +34,15 @@
     title: app.querySelector('[data-editor-title]'),
     feedback: app.querySelector('[data-form-feedback]'),
     approveToggle: app.querySelector('[data-admin-approve-toggle]'),
-    qrcodePreviewCard: app.querySelector('[data-qrcode-preview-card]'),
-    qrcodePreviewImage: app.querySelector('[data-qrcode-preview-image]'),
     contactInfoField: app.querySelector('[data-contact-info-field]'),
     qrcodePathField: app.querySelector('[data-qrcode-path-field]'),
+    qrcodeFileInput: app.querySelector('[data-admin-qrcode-file]'),
+    qrcodeDropzone: app.querySelector('[data-admin-qrcode-dropzone]'),
+    qrcodePreview: app.querySelector('[data-admin-qrcode-preview]'),
+    qrcodePreviewImage: app.querySelector('[data-admin-qrcode-preview-image]'),
+    qrcodeReplaceButton: app.querySelector('[data-admin-qrcode-replace]'),
+    savedModal: app.querySelector('[data-admin-saved-modal]'),
+    savedCloseButtons: Array.from(app.querySelectorAll('[data-admin-saved-close]')),
     metaCreated: app.querySelector('[data-meta-created]'),
     metaUpdated: app.querySelector('[data-meta-updated]'),
     metaApprovedBy: app.querySelector('[data-meta-approved-by]'),
@@ -51,6 +57,7 @@
   const loginRouteWithTokenInvalid = `${loginRoute}?reason=token_invalid`;
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
   const auth = window.VipAdminAuth;
+  let qrcodePreviewUrl = '';
 
   function setDrawerOpen(isOpen) {
     const shouldOpen = Boolean(isOpen) && mobileDrawerQuery.matches;
@@ -109,6 +116,102 @@
     els.feedback.style.color = isError ? '#c64d34' : '#6c5b4d';
   }
 
+  function setSavedModalOpen(isOpen) {
+    if (!els.savedModal) {
+      return;
+    }
+
+    els.savedModal.classList.toggle('is-hidden', !isOpen);
+    els.savedModal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    document.body.classList.toggle('admin-modal-open', isOpen);
+  }
+
+  function getFormSnapshot() {
+    return JSON.stringify({
+      nickname: els.form.elements.nickname.value.trim(),
+      generation: els.form.elements.generation.value,
+      gender: els.form.elements.gender.value,
+      location: els.form.elements.location.value.trim(),
+      join_reason: els.form.elements.join_reason.value.trim(),
+      intro_text: els.form.elements.intro_text.value.trim(),
+      contact_type: els.form.elements.contact_type.value,
+      contact_info: els.form.elements.contact_info.value.trim(),
+      contact_qrcode_path: els.form.elements.contact_qrcode_path.value.trim(),
+      is_approved: Boolean(els.approveToggle.checked),
+    });
+  }
+
+  function syncDirtyState() {
+    const isDirty = state.initialSnapshot !== '' && getFormSnapshot() !== state.initialSnapshot;
+    if (els.saveButton) {
+      els.saveButton.disabled = !isDirty;
+    }
+  }
+
+  function clearQrcodePreview() {
+    if (qrcodePreviewUrl) {
+      URL.revokeObjectURL(qrcodePreviewUrl);
+      qrcodePreviewUrl = '';
+    }
+
+    if (els.qrcodePreviewImage) {
+      els.qrcodePreviewImage.src = '';
+    }
+    if (els.qrcodePreview) {
+      els.qrcodePreview.hidden = true;
+    }
+    if (els.qrcodeDropzone) {
+      els.qrcodeDropzone.hidden = false;
+    }
+  }
+
+  function showQrcodePreview(path) {
+    clearQrcodePreview();
+    if (!path) {
+      return;
+    }
+
+    if (els.qrcodePreviewImage) {
+      els.qrcodePreviewImage.src = `/${String(path).replace(/^\/+/, '')}`;
+    }
+    if (els.qrcodePreview) {
+      els.qrcodePreview.hidden = false;
+    }
+    if (els.qrcodeDropzone) {
+      els.qrcodeDropzone.hidden = true;
+    }
+  }
+
+  async function uploadQrcode(file) {
+    const formData = new FormData();
+    formData.append('contact_qrcode', file);
+
+    startLoading('正在上传二维码...');
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${state.token}`);
+    headers.set('X-Clerk-Token', state.token);
+    headers.set('X-Clerk-User-Email', state.userEmail);
+
+    try {
+      const response = await fetch('/api/vip-admin-upload-qrcode.php', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const error = new Error(data && data.error && data.error.message ? data.error.message : '二维码上传失败。');
+        error.status = response.status;
+        throw error;
+      }
+
+      return data;
+    } finally {
+      stopLoading();
+    }
+  }
+
   function syncUsersNav() {
     if (!state.viewerRole) {
       return;
@@ -120,9 +223,9 @@
     });
   }
 
-  function formatDateTime(value) {
+  function formatDateTime(value, fallback) {
     if (!value) {
-      return '--';
+      return fallback || '--';
     }
 
     const normalized = String(value).replace(' ', 'T');
@@ -145,7 +248,7 @@
     const controls = els.form.querySelectorAll('input, select, textarea, button');
     controls.forEach((control) => {
       if (control === els.saveButton) {
-        control.disabled = !enabled;
+        control.disabled = true;
         return;
       }
 
@@ -161,6 +264,7 @@
       els.form.reset();
       setFormFeedback('', false);
       setEditorEnabled(false);
+      state.initialSnapshot = '';
       return;
     }
 
@@ -180,27 +284,30 @@
     const isQrcode = item.contact_type === 'qrcode';
     els.contactInfoField.classList.toggle('is-hidden', isQrcode);
     els.qrcodePathField.classList.toggle('is-hidden', !isQrcode);
-
-    if (isQrcode && item.contact_qrcode_path) {
-      els.qrcodePreviewImage.src = `/${String(item.contact_qrcode_path).replace(/^\/+/, '')}`;
-      els.qrcodePreviewCard.classList.remove('is-hidden');
-    } else {
-      els.qrcodePreviewImage.src = '';
-      els.qrcodePreviewCard.classList.add('is-hidden');
+    if (els.qrcodeFileInput) {
+      els.qrcodeFileInput.value = '';
     }
 
-    els.metaCreated.textContent = formatDateTime(item.created_at);
-    els.metaUpdated.textContent = formatDateTime(item.updated_at);
-    els.metaApprovedBy.textContent = item.approved_by || '--';
-    els.metaApprovedAt.textContent = formatDateTime(item.approved_at);
-    els.metaIpLocation.textContent = item.ip_lookup_location || item.ip_address || '--';
+    if (isQrcode && item.contact_qrcode_path) {
+      showQrcodePreview(item.contact_qrcode_path);
+    } else {
+      clearQrcodePreview();
+    }
+
+    els.metaCreated.textContent = formatDateTime(item.created_at, '暂无数据');
+    els.metaUpdated.textContent = formatDateTime(item.updated_at, '暂无数据');
+    els.metaApprovedBy.textContent = item.approved_by || '暂无数据';
+    els.metaApprovedAt.textContent = formatDateTime(item.approved_at, Number(item.is_approved) === 1 ? '暂无记录' : '未审核');
+    els.metaIpLocation.textContent = item.ip_lookup_location || item.ip_address || '暂无数据';
     els.metaDevice.textContent = [
       item.device_type || '',
       [item.browser_name, item.browser_version].filter(Boolean).join(' '),
       [item.os_name, item.os_version].filter(Boolean).join(' '),
-    ].filter(Boolean).join(' · ') || '--';
+    ].filter(Boolean).join(' · ') || '暂无数据';
 
     setEditorEnabled(true);
+    state.initialSnapshot = getFormSnapshot();
+    syncDirtyState();
   }
 
   async function apiFetch(path, options, reason) {
@@ -359,6 +466,10 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      if (els.savedModal && !els.savedModal.classList.contains('is-hidden')) {
+        setSavedModalOpen(false);
+        return;
+      }
       closeDrawer();
     }
   });
@@ -375,16 +486,88 @@
     });
   });
 
+  els.savedCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setSavedModalOpen(false);
+    });
+  });
+
   els.form.elements.contact_type.addEventListener('change', () => {
     const isQrcode = els.form.elements.contact_type.value === 'qrcode';
     els.contactInfoField.classList.toggle('is-hidden', isQrcode);
     els.qrcodePathField.classList.toggle('is-hidden', !isQrcode);
+
+    if (!isQrcode) {
+      els.form.elements.contact_qrcode_path.value = '';
+      if (els.qrcodeFileInput) {
+        els.qrcodeFileInput.value = '';
+      }
+      clearQrcodePreview();
+    }
+
+    syncDirtyState();
   });
+
+  if (els.qrcodeFileInput) {
+    els.qrcodeFileInput.addEventListener('change', async () => {
+      const [file] = Array.from(els.qrcodeFileInput.files || []);
+      if (!file) {
+        return;
+      }
+
+      setFormFeedback('正在上传二维码...', false);
+
+      try {
+        await ensureToken();
+        const data = await uploadQrcode(file);
+        const uploadedPath = String(data && data.data ? data.data.path || '' : '');
+        if (!uploadedPath) {
+          throw new Error('二维码上传后未返回文件路径。');
+        }
+
+        els.form.elements.contact_qrcode_path.value = uploadedPath;
+        clearQrcodePreview();
+        qrcodePreviewUrl = URL.createObjectURL(file);
+        els.qrcodePreviewImage.src = qrcodePreviewUrl;
+        els.qrcodePreview.hidden = false;
+        els.qrcodeDropzone.hidden = true;
+        setFormFeedback('二维码已上传。', false);
+        syncDirtyState();
+      } catch (error) {
+        els.qrcodeFileInput.value = '';
+        setFormFeedback(error.message || '二维码上传失败。', true);
+      }
+    });
+  }
+
+  if (els.qrcodeReplaceButton) {
+    els.qrcodeReplaceButton.addEventListener('click', () => {
+      els.form.elements.contact_qrcode_path.value = '';
+      if (els.qrcodeFileInput) {
+        els.qrcodeFileInput.value = '';
+        clearQrcodePreview();
+        els.qrcodeFileInput.click();
+      }
+      syncDirtyState();
+    });
+  }
+
+  ['nickname', 'generation', 'gender', 'location', 'join_reason', 'contact_type', 'contact_info', 'contact_qrcode_path', 'intro_text'].forEach((fieldName) => {
+    const field = els.form.elements[fieldName];
+    if (!field) {
+      return;
+    }
+
+    field.addEventListener('input', syncDirtyState);
+    field.addEventListener('change', syncDirtyState);
+  });
+
+  els.approveToggle.addEventListener('change', syncDirtyState);
 
   els.form.addEventListener('submit', async (event) => {
     event.preventDefault();
 
-    if (!state.item) {
+    if (!state.item || els.saveButton.disabled) {
       return;
     }
 
@@ -412,12 +595,15 @@
         body: JSON.stringify(payload),
       }, '正在保存修改...');
 
-      setFormFeedback('修改已保存。', false);
+      state.initialSnapshot = getFormSnapshot();
+      syncDirtyState();
+      setFormFeedback('', false);
+      setSavedModalOpen(true);
       await fetchItem();
     } catch (error) {
       setFormFeedback(error.message || '保存失败。', true);
     } finally {
-      els.saveButton.disabled = false;
+      syncDirtyState();
     }
   });
 
