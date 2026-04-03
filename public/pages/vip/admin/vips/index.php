@@ -52,7 +52,7 @@ $publishableKey = vip_admin_get_publishable_key();
         <div class="state-copy">
           <p class="state-kicker">VIP Admin</p>
           <h2 data-forbidden-title>Access denied</h2>
-          <p data-forbidden-message>Your account is not on the VIP admin whitelist.</p>
+          <p data-forbidden-message>Your account does not have access to this page.</p>
         </div>
         <div class="state-actions">
           <button type="button" class="ghost-button" data-admin-signout>退出并切换账号</button>

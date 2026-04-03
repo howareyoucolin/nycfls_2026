@@ -216,8 +216,7 @@
 
   function setWhitelistDeniedView(titleEl, messageEl, options) {
     const title = 'Access denied';
-    const message =
-      'Your account is not on the VIP admin whitelist. If you need access, contact an administrator.';
+    const message = 'Your account does not have access to this page. If you need access, contact an administrator.';
     if (titleEl) {
       titleEl.textContent = title;
     }

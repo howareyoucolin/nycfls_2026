@@ -287,11 +287,6 @@
     return data;
   }
 
-  async function checkWhitelist() {
-    const data = await apiFetch('/api/vip-admin-whitelist.php', { method: 'GET' });
-    return data && data.data ? data.data : {};
-  }
-
   async function fetchItems() {
     const query = new URLSearchParams({
       status: els.status.value,
@@ -335,7 +330,6 @@
     await ensureToken();
 
     try {
-      const access = await checkWhitelist();
       els.signoutButtons.forEach((button) => {
         button.hidden = false;
       });

@@ -354,11 +354,6 @@
     state.token = authState.token;
   }
 
-  async function checkWhitelist() {
-    const data = await apiFetch('/api/vip-admin-whitelist.php', { method: 'GET' }, '正在验证管理员权限...');
-    return data && data.data ? data.data : {};
-  }
-
   async function fetchItems() {
     const query = new URLSearchParams({
       status: state.status || defaultStatus,
@@ -386,7 +381,6 @@
     await ensureToken();
 
     try {
-      await checkWhitelist();
       els.signoutButtons.forEach((button) => {
         button.hidden = false;
       });

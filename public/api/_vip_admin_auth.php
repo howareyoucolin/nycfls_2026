@@ -108,20 +108,6 @@ function vip_admin_enforce_canonical_origin(): void
     exit;
 }
 
-function vip_admin_get_email_whitelist(): array
-{
-    return [
-        'howareyoucolin@gmail.com',
-    ];
-}
-
-function vip_admin_get_user_id_whitelist(): array
-{
-    return [
-        'user_38VVcRNmFMLuMF5KraiFYo93S2l',
-    ];
-}
-
 function vip_admin_get_authorization_header_value(): string
 {
     $direct = trim((string) ($_SERVER['HTTP_AUTHORIZATION'] ?? ''));
@@ -179,69 +165,16 @@ function vip_admin_decode_jwt_payload(string $jwt): array
     return is_array($payload) ? $payload : [];
 }
 
-function vip_admin_extract_emails(array $claims): array
-{
-    $emails = [];
-    $directKeys = ['email', 'email_address', 'primary_email_address'];
-
-    foreach ($directKeys as $key) {
-        $value = trim((string) ($claims[$key] ?? ''));
-        if ($value !== '') {
-            $emails[] = mb_strtolower($value);
-        }
-    }
-
-    foreach (['email_addresses', 'emails'] as $key) {
-        $value = $claims[$key] ?? null;
-        if (!is_array($value)) {
-            continue;
-        }
-
-        foreach ($value as $item) {
-            if (is_string($item) && trim($item) !== '') {
-                $emails[] = mb_strtolower(trim($item));
-                continue;
-            }
-
-            if (is_array($item)) {
-                foreach (['email_address', 'email'] as $itemKey) {
-                    $itemValue = trim((string) ($item[$itemKey] ?? ''));
-                    if ($itemValue !== '') {
-                        $emails[] = mb_strtolower($itemValue);
-                    }
-                }
-            }
-        }
-    }
-
-    return array_values(array_unique($emails));
-}
-
 function vip_admin_actor_label(array $claims): string
 {
-    $emails = vip_admin_extract_emails($claims);
-    if ($emails !== []) {
-        return $emails[0];
+    foreach (['email', 'email_address', 'primary_email_address'] as $key) {
+        $value = trim((string) ($claims[$key] ?? ''));
+        if ($value !== '') {
+            return mb_strtolower($value);
+        }
     }
 
     return trim((string) ($claims['sub'] ?? ''));
-}
-
-function vip_admin_is_authorized(array $claims): bool
-{
-    $userId = trim((string) ($claims['sub'] ?? ''));
-    if ($userId !== '' && in_array($userId, vip_admin_get_user_id_whitelist(), true)) {
-        return true;
-    }
-
-    $allowedEmails = vip_admin_get_email_whitelist();
-    foreach (vip_admin_extract_emails($claims) as $email) {
-        if (in_array($email, $allowedEmails, true)) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 function vip_admin_require_auth(): array
@@ -280,13 +213,6 @@ function vip_admin_require_auth(): array
             'token_azp' => (string) ($tokenPayload['azp'] ?? ''),
             'token_iss' => (string) ($tokenPayload['iss'] ?? ''),
             'token_sub' => (string) ($tokenPayload['sub'] ?? ''),
-        ]);
-    }
-
-    if (!vip_admin_is_authorized($claims)) {
-        api_error('forbidden', 'You are signed in but not on the VIP admin whitelist.', 403, [
-            'user_id' => (string) ($claims['sub'] ?? ''),
-            'emails' => vip_admin_extract_emails($claims),
         ]);
     }
 

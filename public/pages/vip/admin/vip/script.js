@@ -240,11 +240,6 @@
     state.token = authState.token;
   }
 
-  async function checkWhitelist() {
-    const data = await apiFetch('/api/vip-admin-whitelist.php', { method: 'GET' }, '正在验证管理员权限...');
-    return data && data.data ? data.data : {};
-  }
-
   async function fetchItem() {
     setFormFeedback('正在加载报名资料...', false);
     const data = await apiFetch(`/api/vip-admin-item.php?id=${encodeURIComponent(String(vipId))}`, { method: 'GET' }, '正在获取报名资料...');
@@ -258,7 +253,6 @@
     await ensureToken();
 
     try {
-      await checkWhitelist();
       els.signoutButtons.forEach((button) => {
         button.hidden = false;
       });

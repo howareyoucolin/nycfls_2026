@@ -60,7 +60,7 @@ if ($vipId <= 0) {
         <div class="state-copy">
           <p class="state-kicker">VIP Admin</p>
           <h2 data-forbidden-title>Access denied</h2>
-          <p data-forbidden-message>Your account is not on the VIP admin whitelist.</p>
+          <p data-forbidden-message>Your account does not have access to this page.</p>
         </div>
         <div class="state-actions">
           <a href="/vip/admin/vips/" class="ghost-button">返回列表</a>
