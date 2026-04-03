@@ -19,23 +19,28 @@
   }
 
   async function mountLogin() {
+    auth.debugLog(`login mount redirectReason=${redirectReason || 'none'}`);
     setLoginFeedback('正在加载 Clerk 登录组件...');
     const clerk = await auth.loadClerk(publishableKey);
 
     if (clerk.session) {
+      auth.debugLog('login found existing session');
       if (redirectReason === 'auth_failed') {
         setLoginFeedback('检测到已登录，但后台校验没有通过，请重新登录后再试。');
       } else {
         setLoginFeedback('已检测到登录状态，正在进入后台...');
+        auth.debugLog(`login redirect -> ${dashboardUrl}`);
         window.location.href = dashboardUrl;
         return;
       }
     }
 
     if (redirectReason === 'auth_failed') {
+      auth.debugLog('login auth_failed branch');
       try {
         await auth.signOut(publishableKey);
       } catch (error) {
+        auth.debugLog(`login signOut failed ${error && error.message ? error.message : 'unknown'}`);
         // Keep the sign-in form available even if the stale session cannot be cleared.
       }
 
@@ -69,10 +74,12 @@
       return;
     }
 
+    auth.debugLog('login sign-in mounted');
     setLoginFeedback('请使用 Clerk 账号登录。');
   }
 
   mountLogin().catch((error) => {
+    auth.debugLog(`login mount failed ${error && error.message ? error.message : 'unknown'}`);
     setLoginFeedback(error.message || 'Clerk 登录组件加载失败。');
   });
 })();

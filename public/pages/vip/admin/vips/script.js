@@ -334,12 +334,14 @@
     }
 
     try {
+      auth.debugLog(`vips fetch ${path}`);
       const response = await fetch(path, {
         ...options,
         headers,
       });
 
       const data = await response.json().catch(() => null);
+      auth.debugLog(`vips fetch status ${path} -> ${response.status}`);
 
       if (!response.ok) {
         const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
@@ -356,9 +358,11 @@
 
   async function ensureToken() {
     if (state.token) {
+      auth.debugLog('vips token cache hit');
       return;
     }
 
+    auth.debugLog('vips ensureToken start');
     const authState = await auth.requireToken(publishableKey, 'auth_failed');
     if (!authState) {
       throw new Error('Unable to retrieve Clerk token.');
@@ -396,6 +400,7 @@
   }
 
   async function refreshDashboard() {
+    auth.debugLog('vips refreshDashboard start');
     await ensureToken();
 
     try {
@@ -408,27 +413,32 @@
       setView('dashboard');
     } catch (error) {
       if (error && error.status === 403) {
+        auth.debugLog('vips refreshDashboard forbidden');
         els.forbiddenMessage.textContent = buildForbiddenMessage(error);
         setView('forbidden');
         return;
       }
 
       if (error && error.status === 401) {
+        auth.debugLog(`vips refreshDashboard redirect login -> ${loginRouteWithAuthFailure}`);
         window.location.href = loginRouteWithAuthFailure;
         return;
       }
 
+      auth.debugLog(`vips refreshDashboard failed ${error.message || 'unknown'}`);
       setView('dashboard');
       setListFeedback(error.message || '加载报名数据失败。', true);
     }
   }
 
   async function initDashboardSession() {
+    auth.debugLog('vips initDashboardSession start');
     const sessionState = await auth.requireSession(publishableKey, 'auth_failed');
     if (!sessionState) {
       return false;
     }
 
+    auth.debugLog('vips initDashboardSession ok');
     state.clerk = sessionState.clerk;
     return true;
   }
@@ -569,6 +579,7 @@
       return refreshDashboard();
     })
     .catch((error) => {
+      auth.debugLog(`vips init failed ${error && error.message ? error.message : 'unknown'}`);
       setView('forbidden');
       els.forbiddenMessage.textContent = error.message || 'Clerk 初始化失败。';
     });

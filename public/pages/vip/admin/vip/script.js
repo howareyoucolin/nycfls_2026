@@ -221,12 +221,14 @@
     }
 
     try {
+      auth.debugLog(`vip fetch ${path}`);
       const response = await fetch(path, {
         ...options,
         headers,
       });
 
       const data = await response.json().catch(() => null);
+      auth.debugLog(`vip fetch status ${path} -> ${response.status}`);
 
       if (!response.ok) {
         const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
@@ -243,9 +245,11 @@
 
   async function ensureToken() {
     if (state.token) {
+      auth.debugLog('vip token cache hit');
       return;
     }
 
+    auth.debugLog('vip ensureToken start');
     const authState = await auth.requireToken(publishableKey, 'auth_failed');
     if (!authState) {
       throw new Error('Unable to retrieve Clerk token.');
@@ -269,6 +273,7 @@
   }
 
   async function refreshDashboard() {
+    auth.debugLog('vip refreshDashboard start');
     await ensureToken();
 
     try {
@@ -281,6 +286,7 @@
       setView('dashboard');
     } catch (error) {
       if (error && error.status === 403) {
+        auth.debugLog('vip refreshDashboard forbidden');
         els.forbiddenTitle.textContent = '当前账号没有后台权限';
         els.forbiddenMessage.textContent = buildForbiddenMessage(error);
         setView('forbidden');
@@ -288,6 +294,7 @@
       }
 
       if (error && error.status === 404) {
+        auth.debugLog('vip refreshDashboard missing item');
         els.forbiddenTitle.textContent = '未找到该报名资料';
         els.forbiddenMessage.textContent = '请返回 Vips 列表后重新选择。';
         setView('forbidden');
@@ -295,10 +302,12 @@
       }
 
       if (error && error.status === 401) {
+        auth.debugLog(`vip refreshDashboard redirect login -> ${loginRouteWithAuthFailure}`);
         window.location.href = loginRouteWithAuthFailure;
         return;
       }
 
+      auth.debugLog(`vip refreshDashboard failed ${error.message || 'unknown'}`);
       els.forbiddenTitle.textContent = '加载失败';
       els.forbiddenMessage.textContent = error.message || '加载报名资料失败。';
       setView('forbidden');
@@ -306,11 +315,13 @@
   }
 
   async function initDashboardSession() {
+    auth.debugLog('vip initDashboardSession start');
     const sessionState = await auth.requireSession(publishableKey, 'auth_failed');
     if (!sessionState) {
       return false;
     }
 
+    auth.debugLog('vip initDashboardSession ok');
     state.clerk = sessionState.clerk;
     return true;
   }
@@ -427,6 +438,7 @@
       return refreshDashboard();
     })
     .catch((error) => {
+      auth.debugLog(`vip init failed ${error && error.message ? error.message : 'unknown'}`);
       els.forbiddenTitle.textContent = 'Clerk 初始化失败';
       els.forbiddenMessage.textContent = error.message || 'Clerk 初始化失败。';
       setView('forbidden');

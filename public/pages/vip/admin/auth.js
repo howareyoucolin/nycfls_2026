@@ -1,6 +1,92 @@
 (function () {
   const clerkScriptSrc = 'https://trusted-albacore-0.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
   const loginRoute = '/vip/admin/login';
+  const debugEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
+  const debugStorageKey = 'vip-admin-debug-log';
+
+  function readDebugEntries() {
+    try {
+      const raw = window.sessionStorage.getItem(debugStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function writeDebugEntries(entries) {
+    try {
+      window.sessionStorage.setItem(debugStorageKey, JSON.stringify(entries.slice(-80)));
+    } catch (error) {
+      // Ignore storage failures in private/incognito or restricted modes.
+    }
+  }
+
+  function ensureDebugPanel() {
+    if (!debugEnabled || document.getElementById('vip-admin-debug-panel')) {
+      return null;
+    }
+
+    const panel = document.createElement('pre');
+    panel.id = 'vip-admin-debug-panel';
+    panel.setAttribute('style', [
+      'position:fixed',
+      'left:8px',
+      'right:8px',
+      'bottom:8px',
+      'max-height:38vh',
+      'overflow:auto',
+      'z-index:9999',
+      'margin:0',
+      'padding:10px',
+      'border-radius:10px',
+      'background:rgba(0,0,0,0.88)',
+      'color:#9ef59e',
+      'font:12px/1.4 monospace',
+      'white-space:pre-wrap',
+      'word-break:break-word',
+    ].join(';'));
+
+    panel.textContent = readDebugEntries().join('\n');
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  function debugLog(message) {
+    const line = `${new Date().toISOString()} ${message}`;
+    const entries = readDebugEntries();
+    entries.push(line);
+    writeDebugEntries(entries);
+
+    if (!debugEnabled) {
+      return;
+    }
+
+    const updatePanel = () => {
+      const panel = ensureDebugPanel();
+      if (panel) {
+        panel.textContent = entries.slice(-80).join('\n');
+      }
+    };
+
+    if (document.body) {
+      updatePanel();
+    } else {
+      window.addEventListener('DOMContentLoaded', updatePanel, { once: true });
+    }
+  }
+
+  function clearDebugLog() {
+    try {
+      window.sessionStorage.removeItem(debugStorageKey);
+    } catch (error) {
+      // Ignore storage failures.
+    }
+  }
+
+  if (debugEnabled) {
+    debugLog(`page ${window.location.href}`);
+  }
 
   function buildLoginUrl(reason) {
     if (!reason) {
@@ -11,7 +97,9 @@
   }
 
   function redirectToLogin(reason) {
-    window.location.href = buildLoginUrl(reason || 'auth_failed');
+    const nextUrl = buildLoginUrl(reason || 'auth_failed');
+    debugLog(`redirectToLogin -> ${nextUrl}`);
+    window.location.href = nextUrl;
   }
 
   function loadScript(src, attributes) {
@@ -49,9 +137,11 @@
 
   async function loadClerk(publishableKey) {
     if (!publishableKey) {
+      debugLog('loadClerk missing publishable key');
       throw new Error('缺少 Clerk publishable key，请先直接在代码里补上。');
     }
 
+    debugLog(`loadClerk start origin=${window.location.origin}`);
     await loadScript(clerkScriptSrc, {
       'data-clerk-publishable-key': publishableKey,
     });
@@ -66,6 +156,8 @@
       });
     }
 
+    debugLog(`loadClerk complete session=${window.Clerk.session ? 'yes' : 'no'}`);
+
     return window.Clerk;
   }
 
@@ -74,10 +166,12 @@
     const session = clerk.session;
 
     if (!session || typeof session.getToken !== 'function') {
+      debugLog('requireSession missing session');
       redirectToLogin(reason || 'auth_failed');
       return null;
     }
 
+    debugLog('requireSession ok');
     return { clerk, session };
   }
 
@@ -89,10 +183,12 @@
 
     const token = await result.session.getToken();
     if (!token) {
+      debugLog('requireToken missing token');
       redirectToLogin(reason || 'auth_failed');
       return null;
     }
 
+    debugLog('requireToken ok');
     return {
       clerk: result.clerk,
       token,
@@ -100,14 +196,19 @@
   }
 
   async function signOut(publishableKey) {
+    debugLog('signOut start');
     const clerk = await loadClerk(publishableKey);
     if (typeof clerk.signOut === 'function') {
       await clerk.signOut();
     }
+    debugLog('signOut complete');
   }
 
   window.VipAdminAuth = {
     buildLoginUrl,
+    clearDebugLog,
+    debugEnabled,
+    debugLog,
     redirectToLogin,
     loadClerk,
     requireSession,
