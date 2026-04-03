@@ -139,6 +139,18 @@ function vip_admin_get_bearer_token(): ?string
     return trim((string) ($matches[1] ?? ''));
 }
 
+function vip_admin_decode_jwt_payload(string $jwt): array
+{
+    $parts = explode('.', $jwt);
+    if (count($parts) !== 3) {
+        return [];
+    }
+
+    $payloadJson = base64url_decode_str($parts[1]);
+    $payload = json_decode($payloadJson, true);
+    return is_array($payload) ? $payload : [];
+}
+
 function vip_admin_extract_emails(array $claims): array
 {
     $emails = [];
@@ -234,8 +246,12 @@ function vip_admin_require_auth(): array
     }
 
     if (!is_array($claims)) {
+        $tokenPayload = vip_admin_decode_jwt_payload($token);
         api_error('invalid_token', 'Unable to verify Clerk session token.', 401, [
             'details' => $verificationErrors,
+            'token_azp' => (string) ($tokenPayload['azp'] ?? ''),
+            'token_iss' => (string) ($tokenPayload['iss'] ?? ''),
+            'token_sub' => (string) ($tokenPayload['sub'] ?? ''),
         ]);
     }
 

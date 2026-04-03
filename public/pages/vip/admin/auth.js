@@ -188,6 +188,16 @@
       return null;
     }
 
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        debugLog(`token claims azp=${payload.azp || '[none]'} iss=${payload.iss || '[none]'} sub=${payload.sub || '[none]'}`);
+      }
+    } catch (error) {
+      debugLog('token claims decode failed');
+    }
+
     debugLog('requireToken ok');
     return {
       clerk: result.clerk,

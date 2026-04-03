@@ -231,6 +231,9 @@
       auth.debugLog(`vip fetch status ${path} -> ${response.status}`);
 
       if (!response.ok) {
+        if (data && data.data && Array.isArray(data.data.details)) {
+          auth.debugLog(`vip fetch details ${data.data.details.join(' | ')}`);
+        }
         const error = new Error(data && data.error && data.error.message ? data.error.message : '请求失败。');
         error.status = response.status;
         error.payload = data;
