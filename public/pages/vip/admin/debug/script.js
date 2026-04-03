@@ -165,6 +165,7 @@
     try {
       const response = await fetch(path, {
         ...options,
+        cache: 'no-store',
         headers,
       });
 

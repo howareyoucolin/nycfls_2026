@@ -441,6 +441,7 @@
       auth.debugLog(`vip fetch ${path}`);
       const response = await fetch(path, {
         ...options,
+        cache: 'no-store',
         headers,
       });
 

@@ -388,6 +388,7 @@
       auth.debugLog(`vips fetch ${path}`);
       const response = await fetch(path, {
         ...options,
+        cache: 'no-store',
         headers,
       });
 
