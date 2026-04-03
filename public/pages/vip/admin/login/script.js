@@ -9,6 +9,7 @@
   const loginFeedback = app.querySelector('[data-login-feedback]');
   const signInRoot = document.getElementById('clerk-signin');
   const dashboardRoute = '/vip/admin/vips/';
+  const dashboardUrl = new URL(dashboardRoute, window.location.origin).toString();
   const pageParams = new URLSearchParams(window.location.search);
   const redirectReason = pageParams.get('reason') || '';
   const auth = window.VipAdminAuth;
@@ -26,7 +27,7 @@
         setLoginFeedback('检测到已登录，但后台校验没有通过，请重新登录后再试。');
       } else {
         setLoginFeedback('已检测到登录状态，正在进入后台...');
-        window.location.href = dashboardRoute;
+        window.location.href = dashboardUrl;
         return;
       }
     }
@@ -53,10 +54,14 @@
           footerAction: { display: 'none' },
         },
       },
-      forceRedirectUrl: dashboardRoute,
-      fallbackRedirectUrl: dashboardRoute,
-      afterSignInUrl: dashboardRoute,
-      afterSignUpUrl: dashboardRoute,
+      forceRedirectUrl: dashboardUrl,
+      fallbackRedirectUrl: dashboardUrl,
+      signInForceRedirectUrl: dashboardUrl,
+      signInFallbackRedirectUrl: dashboardUrl,
+      signUpForceRedirectUrl: dashboardUrl,
+      signUpFallbackRedirectUrl: dashboardUrl,
+      afterSignInUrl: dashboardUrl,
+      afterSignUpUrl: dashboardUrl,
     });
 
     if (redirectReason === 'auth_failed') {
