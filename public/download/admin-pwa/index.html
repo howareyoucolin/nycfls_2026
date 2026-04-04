@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f3ede3">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="VIP Admin">
+  <title>VIP Admin</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.svg">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="app-frame">
+      <header class="app-topbar">
+        <div class="topbar-copy">
+          <p class="eyebrow">VIP ADMIN APP</p>
+          <h1>移动后台</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="status-pill">
+            <span class="status-pill-label">未读</span>
+            <strong class="status-pill-value" data-unread-count>--</strong>
+          </div>
+          <button class="install-button is-hidden" type="button" data-install-button>安装</button>
+          <a class="open-button" href="/vip/admin/vips/" target="_blank" rel="noreferrer">新窗口打开</a>
+        </div>
+      </header>
+
+      <p class="status-note" data-status-note>正在加载管理员未读数据...</p>
+
+      <div class="iframe-shell">
+        <iframe
+          class="admin-iframe"
+          src="/vip/admin/vips/"
+          title="VIP Admin"
+          loading="eager"
+          referrerpolicy="same-origin"
+        ></iframe>
+      </div>
+    </section>
+  </main>
+  <script src="/pages/vip/admin/auth.js" defer></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>

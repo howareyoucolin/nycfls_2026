@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/_vip_admin_auth.php';
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+    api_error('method_not_allowed', 'Only GET is allowed.', 405);
+}
+
+$claims = vip_admin_require_auth();
+
+try {
+    $pdo = db();
+    $unreadCount = (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_read = 0')->fetchColumn();
+
+    api_ok([
+        'unread_count' => $unreadCount,
+        'viewer' => [
+            'user_id' => (string) ($claims['sub'] ?? ''),
+            'label' => (string) ($claims['_actor_label'] ?? ''),
+            'email' => (string) ($claims['_viewer_email'] ?? ''),
+            'role' => (string) ($claims['_viewer_role'] ?? ''),
+        ],
+    ], 'Loaded unread VIP count.');
+} catch (Throwable $throwable) {
+    api_error('server_error', 'Unable to load unread VIP count right now.', 500);
+}

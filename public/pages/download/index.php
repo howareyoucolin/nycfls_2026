@@ -26,7 +26,7 @@ declare(strict_types=1);
       </div>
 
       <div class="download-actions">
-        <a class="primary-button download-button" href="/download/hello-pwa/index.html">打开测试版</a>
+        <a class="primary-button download-button" href="/download/admin-pwa/index.html">打开测试版</a>
         <p class="download-footnote">iPhone 可用 Safari 打开后选择“添加到主屏幕”；Android 可直接安装为网页应用。</p>
       </div>
     </section>
