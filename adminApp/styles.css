@@ -1,0 +1,95 @@
+:root {
+  color-scheme: light;
+  --bg: #f3ede3;
+  --panel: rgba(255, 251, 245, 0.92);
+  --border: #e5d8c5;
+  --text: #2d241c;
+  --muted: #7b6a5a;
+  --accent: #8d6741;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "SF Pro Display", "Segoe UI", "PingFang SC", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(190, 151, 108, 0.18), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(111, 148, 176, 0.14), transparent 30%),
+    var(--bg);
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.hero-card {
+  width: min(100%, 440px);
+  padding: 28px 24px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: 0 20px 48px rgba(56, 40, 24, 0.1);
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+h1 {
+  margin: 12px 0 0;
+  font-size: clamp(38px, 8vw, 56px);
+  line-height: 0.95;
+}
+
+.copy {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.install-button {
+  margin-top: 22px;
+  min-height: 52px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #9a724a 0%, #7f5b39 100%);
+  color: #fffaf4;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(96, 64, 36, 0.18);
+}
+
+.hint {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.is-hidden {
+  display: none;
+}
