@@ -4,6 +4,8 @@ declare(strict_types=1);
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 20;
 $offset = ($page - 1) * $perPage;
+$search = trim((string) ($_GET['search'] ?? ''));
+$searchTerm = $search !== '' ? '%' . $search . '%' : null;
 
 $vipRows = [];
 $totalRows = 0;
@@ -40,7 +42,29 @@ function excerpt_text(string $text, int $limit = 40): array
 }
 
 try {
-    $countStatement = db()->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_approved = 1');
+    $whereParts = [
+        'is_deleted = 0',
+        'is_approved = 1',
+    ];
+    $params = [];
+
+    if ($searchTerm !== null) {
+        if (ctype_digit($search)) {
+            $whereParts[] = '(nickname LIKE :search OR CAST(id AS CHAR) = :search_id)';
+            $params[':search_id'] = $search;
+        } else {
+            $whereParts[] = 'nickname LIKE :search';
+        }
+        $params[':search'] = $searchTerm;
+    }
+
+    $whereSql = 'WHERE ' . implode(' AND ', $whereParts);
+
+    $countStatement = db()->prepare('SELECT COUNT(*) FROM vips ' . $whereSql);
+    foreach ($params as $key => $value) {
+        $countStatement->bindValue($key, $value);
+    }
+    $countStatement->execute();
     $totalRows = (int) $countStatement->fetchColumn();
 
     $listStatement = db()->prepare(
@@ -60,11 +84,13 @@ try {
             is_approved,
             created_at
         FROM vips
-        WHERE is_deleted = 0
-          AND is_approved = 1
+        ' . $whereSql . '
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset'
     );
+    foreach ($params as $key => $value) {
+        $listStatement->bindValue($key, $value);
+    }
     $listStatement->bindValue(':limit', $perPage, PDO::PARAM_INT);
     $listStatement->bindValue(':offset', $offset, PDO::PARAM_INT);
     $listStatement->execute();
@@ -101,6 +127,33 @@ if ($totalPages <= 7) {
     $paginationItems[] = $totalPages;
     $paginationItems = array_values(array_unique($paginationItems, SORT_REGULAR));
 }
+function vip_page_query(array $overrides = []): string
+{
+    $params = [];
+    $search = trim((string) ($_GET['search'] ?? ''));
+    $page = max(1, (int) ($_GET['page'] ?? 1));
+
+    if ($search !== '') {
+        $params['search'] = $search;
+    }
+
+    if ($page > 1) {
+        $params['page'] = (string) $page;
+    }
+
+    foreach ($overrides as $key => $value) {
+        if ($value === null || $value === '' || ($key === 'page' && (int) $value <= 1)) {
+            unset($params[$key]);
+            continue;
+        }
+
+        $params[$key] = (string) $value;
+    }
+
+    $query = http_build_query($params);
+    return $query !== '' ? ('?' . $query) : '';
+}
+
 function render_pagination(int $page, int $totalPages, array $paginationItems): void
 {
     if ($totalPages <= 1) {
@@ -109,7 +162,7 @@ function render_pagination(int $page, int $totalPages, array $paginationItems): 
     ?>
     <nav class="pagination" aria-label="分页">
       <?php if ($page > 1): ?>
-        <a class="page-arrow" href="/vip?page=<?php echo $page - 1; ?>" aria-label="上一页">‹</a>
+        <a class="page-arrow" href="/vip<?php echo htmlspecialchars(vip_page_query(['page' => $page - 1]), ENT_QUOTES, 'UTF-8'); ?>" aria-label="上一页">‹</a>
       <?php else: ?>
         <span class="page-arrow is-disabled" aria-hidden="true">‹</span>
       <?php endif; ?>
@@ -121,18 +174,32 @@ function render_pagination(int $page, int $totalPages, array $paginationItems): 
           <?php elseif ((int) $paginationItem === $page): ?>
             <span class="page-number is-current"><?php echo $paginationItem; ?></span>
           <?php else: ?>
-            <a class="page-number" href="/vip?page=<?php echo $paginationItem; ?>"><?php echo $paginationItem; ?></a>
+            <a class="page-number" href="/vip<?php echo htmlspecialchars(vip_page_query(['page' => (int) $paginationItem]), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $paginationItem; ?></a>
           <?php endif; ?>
         <?php endforeach; ?>
       </div>
 
       <?php if ($page < $totalPages): ?>
-        <a class="page-arrow" href="/vip?page=<?php echo $page + 1; ?>" aria-label="下一页">›</a>
+        <a class="page-arrow" href="/vip<?php echo htmlspecialchars(vip_page_query(['page' => $page + 1]), ENT_QUOTES, 'UTF-8'); ?>" aria-label="下一页">›</a>
       <?php else: ?>
         <span class="page-arrow is-disabled" aria-hidden="true">›</span>
       <?php endif; ?>
     </nav>
     <?php
+}
+
+function vip_public_origin(): string
+{
+    $scheme = 'http';
+    $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+    if ($https !== '' && $https !== 'off') {
+        $scheme = 'https';
+    } elseif (strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))) === 'https') {
+        $scheme = 'https';
+    }
+
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    return $host !== '' ? ($scheme . '://' . $host) : '';
 }
 ?>
 <!DOCTYPE html>
@@ -154,13 +221,32 @@ function render_pagination(int $page, int $totalPages, array $paginationItems): 
       <p class="hero-copy">这里汇总了目前已提交的群成员资料，你可以轻松翻页浏览，快速认识更多人。</p>
     </section>
 
+    <form class="vip-search-form" method="get" action="/vip">
+      <label class="vip-search-field">
+        <span>搜索</span>
+        <input type="search" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>" placeholder="昵称或编号">
+      </label>
+      <button type="submit" class="vip-search-button" aria-label="搜索" title="搜索">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="6"></circle>
+          <path d="M20 20l-4.2-4.2"></path>
+        </svg>
+      </button>
+    </form>
+
     <?php if ($loadError !== null): ?>
       <section class="state-card">
         <p><?php echo htmlspecialchars($loadError, ENT_QUOTES, 'UTF-8'); ?></p>
       </section>
     <?php elseif ($totalRows === 0): ?>
       <section class="state-card">
-        <p>目前还没有群成员资料，等第一位用户提交后，这里就会显示列表。</p>
+        <p>
+          <?php if ($search !== ''): ?>
+            没有找到符合“<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>”的群成员资料。
+          <?php else: ?>
+            目前还没有群成员资料，等第一位用户提交后，这里就会显示列表。
+          <?php endif; ?>
+        </p>
       </section>
     <?php else: ?>
       <section class="summary-bar">
@@ -173,22 +259,81 @@ function render_pagination(int $page, int $totalPages, array $paginationItems): 
       <section class="vip-grid">
         <?php foreach ($vipRows as $vip): ?>
           <?php $introExcerpt = excerpt_text((string) $vip['intro_text'], 75); ?>
+          <?php
+          $metaParts = [
+              ($vip['generation'] !== '' ? $vip['generation'] . '后' : ''),
+              $genderLabels[$vip['gender']] ?? $vip['gender'],
+              $vip['location'],
+              $vip['join_reason'],
+          ];
+          $metaLine = implode(' · ', array_filter($metaParts));
+          $memberPath = '/vip/member/' . (int) $vip['id'];
+          $memberUrl = vip_public_origin() . $memberPath;
+          $contactLine = '';
+          if (!empty($vip['contact_type'])) {
+              $contactTypeLabel = $contactTypeLabels[$vip['contact_type']] ?? $vip['contact_type'];
+              if ($vip['contact_type'] === 'qrcode') {
+                  $contactLine = '联系方式：二维码，请打开详情查看';
+              } else {
+                  $contactLine = '联系方式：' . $contactTypeLabel . '：' . (string) $vip['contact_info'];
+              }
+          }
+          $copyParagraph = implode("\n", array_filter([
+              'VIP #' . (int) $vip['id'] . ' ' . (string) $vip['nickname'],
+              $metaLine !== '' ? ('资料：' . $metaLine) : '',
+              '自我介绍：' . trim((string) $vip['intro_text']),
+              $contactLine,
+              '详情链接：' . $memberUrl,
+          ]));
+          ?>
           <article class="vip-card">
             <div class="card-top">
               <div>
                 <p class="card-id">#<?php echo (int) $vip['id']; ?></p>
                 <h2><?php echo htmlspecialchars($vip['nickname'], ENT_QUOTES, 'UTF-8'); ?></h2>
                 <p class="meta-line">
-                  <?php
-                  $metaParts = [
-                      ($vip['generation'] !== '' ? $vip['generation'] . '后' : ''),
-                      $genderLabels[$vip['gender']] ?? $vip['gender'],
-                      $vip['location'],
-                      $vip['join_reason'],
-                  ];
-                  echo htmlspecialchars(implode(' · ', array_filter($metaParts)), ENT_QUOTES, 'UTF-8');
-                  ?>
+                  <?php echo htmlspecialchars($metaLine, ENT_QUOTES, 'UTF-8'); ?>
                 </p>
+              </div>
+              <div class="card-actions">
+                <a
+                  href="<?php echo htmlspecialchars($memberPath, ENT_QUOTES, 'UTF-8'); ?>"
+                  class="card-icon-button"
+                  aria-label="打开成员详情"
+                  title="打开成员详情"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 5h5v5"></path>
+                    <path d="M10 14 19 5"></path>
+                    <path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"></path>
+                  </svg>
+                </a>
+                <button
+                  type="button"
+                  class="card-icon-button"
+                  data-copy-card
+                  data-copy-text="<?php echo htmlspecialchars($copyParagraph, ENT_QUOTES, 'UTF-8'); ?>"
+                  aria-label="复制会员文案"
+                  title="复制会员文案"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                    <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="card-icon-button"
+                  data-copy-link
+                  data-copy-link-value="<?php echo htmlspecialchars($memberUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                  aria-label="复制详情链接"
+                  title="复制详情链接"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 1 0-7.07-7.07L10.9 5"></path>
+                    <path d="M14 11a5 5 0 0 0-7.07 0L4.81 13.12a5 5 0 0 0 7.07 7.07L13.1 19"></path>
+                  </svg>
+                </button>
               </div>
             </div>
 
