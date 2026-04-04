@@ -52,7 +52,9 @@ try {
             vm.browser_version,
             vm.os_name,
             vm.os_version,
-            vm.device_type
+            vm.device_type,
+            vm.fingerprint,
+            COALESCE(fp.same_fingerprint_count, 0) AS same_fingerprint_count
         FROM vips v
         LEFT JOIN (
             SELECT latest.*
@@ -64,6 +66,19 @@ try {
                 GROUP BY vip_id
             ) grouped ON grouped.latest_id = latest.id
         ) vm ON vm.vip_id = v.id
+        LEFT JOIN (
+            SELECT latest_meta.fingerprint, COUNT(*) AS same_fingerprint_count
+            FROM vip_meta latest_meta
+            INNER JOIN (
+                SELECT vip_id, MAX(id) AS latest_id
+                FROM vip_meta
+                WHERE vip_id IS NOT NULL
+                GROUP BY vip_id
+            ) latest_grouped ON latest_grouped.latest_id = latest_meta.id
+            WHERE latest_meta.fingerprint IS NOT NULL
+              AND latest_meta.fingerprint <> ""
+            GROUP BY latest_meta.fingerprint
+        ) fp ON fp.fingerprint = vm.fingerprint
         WHERE v.id = :id
         LIMIT 1
         '
@@ -77,8 +92,42 @@ try {
         api_error('not_found', 'Signup not found.', 404);
     }
 
+    $sameFingerprintMembers = [];
+    $fingerprint = trim((string) ($item['fingerprint'] ?? ''));
+
+    if ($fingerprint !== '') {
+        $relatedStatement = $pdo->prepare(
+            '
+            SELECT
+                v.id,
+                v.nickname,
+                v.is_deleted
+            FROM vips v
+            INNER JOIN (
+                SELECT latest_meta.vip_id, latest_meta.fingerprint
+                FROM vip_meta latest_meta
+                INNER JOIN (
+                    SELECT vip_id, MAX(id) AS latest_id
+                    FROM vip_meta
+                    WHERE vip_id IS NOT NULL
+                    GROUP BY vip_id
+                ) grouped ON grouped.latest_id = latest_meta.id
+            ) latest_vm ON latest_vm.vip_id = v.id
+            WHERE latest_vm.fingerprint = :fingerprint
+              AND v.id <> :id
+            ORDER BY v.id DESC
+            '
+        );
+        $relatedStatement->execute([
+            ':fingerprint' => $fingerprint,
+            ':id' => $id,
+        ]);
+        $sameFingerprintMembers = $relatedStatement->fetchAll();
+    }
+
     api_ok([
         'item' => $item,
+        'same_fingerprint_members' => $sameFingerprintMembers,
         'viewer' => [
             'user_id' => (string) ($claims['sub'] ?? ''),
             'label' => (string) ($claims['_actor_label'] ?? ''),

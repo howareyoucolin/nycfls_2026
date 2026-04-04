@@ -22,6 +22,33 @@ document.querySelectorAll('[data-intro-toggle]').forEach((button) => {
   });
 });
 
+const copyModal = document.querySelector('[data-copy-modal]');
+const copyModalTitle = document.querySelector('[data-copy-modal-title]');
+const copyModalText = document.querySelector('[data-copy-modal-text]');
+const copyModalCloseButtons = document.querySelectorAll('[data-copy-modal-close]');
+
+function setCopyModalOpen(isOpen, title = '', text = '') {
+  if (!copyModal) {
+    return;
+  }
+
+  copyModal.classList.toggle('is-hidden', !isOpen);
+  copyModal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+
+  if (isOpen) {
+    if (copyModalTitle) {
+      copyModalTitle.textContent = title;
+    }
+    if (copyModalText) {
+      copyModalText.textContent = text;
+    }
+    document.body.classList.add('vip-modal-open');
+    return;
+  }
+
+  document.body.classList.remove('vip-modal-open');
+}
+
 async function copyTextValue(value) {
   if (!value) {
     return false;
@@ -48,11 +75,11 @@ document.querySelectorAll('[data-copy-card]').forEach((button) => {
   button.addEventListener('click', async () => {
     const value = button.getAttribute('data-copy-text') || '';
     const copied = await copyTextValue(value);
-    const originalTitle = button.getAttribute('title') || '复制会员文案';
-    button.setAttribute('title', copied ? '已复制' : '复制失败');
-    window.setTimeout(() => {
-      button.setAttribute('title', originalTitle);
-    }, 1200);
+    setCopyModalOpen(
+      true,
+      copied ? '资料已复制' : '复制失败',
+      copied ? '会员资料文案已复制。' : '会员资料文案复制失败，请再试一次。'
+    );
   });
 });
 
@@ -60,10 +87,22 @@ document.querySelectorAll('[data-copy-link]').forEach((button) => {
   button.addEventListener('click', async () => {
     const value = button.getAttribute('data-copy-link-value') || '';
     const copied = await copyTextValue(value);
-    const originalTitle = button.getAttribute('title') || '复制详情链接';
-    button.setAttribute('title', copied ? '已复制' : '复制失败');
-    window.setTimeout(() => {
-      button.setAttribute('title', originalTitle);
-    }, 1200);
+    setCopyModalOpen(
+      true,
+      copied ? '链接已复制' : '复制失败',
+      copied ? '成员详情链接已复制。' : '成员详情链接复制失败，请再试一次。'
+    );
   });
+});
+
+copyModalCloseButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    setCopyModalOpen(false);
+  });
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    setCopyModalOpen(false);
+  }
 });

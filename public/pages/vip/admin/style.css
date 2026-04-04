@@ -1358,6 +1358,10 @@
   padding: 14px;
 }
 
+.meta-card--wide {
+  grid-column: 1 / -1;
+}
+
 .meta-label,
 .preview-title {
   display: block;
@@ -1373,6 +1377,30 @@
   color: #2d241c;
   line-height: 1.45;
   font-size: 14px;
+}
+
+.meta-related-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.meta-related-item {
+  margin: 0;
+}
+
+.meta-related-link {
+  display: inline;
+  color: #4f79b8;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.meta-related-link:visited {
+  color: #4f79b8;
 }
 
 .qrcode-preview-card {

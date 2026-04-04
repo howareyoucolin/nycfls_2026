@@ -227,6 +227,18 @@ if ($vipId <= 0) {
                 <span class="meta-label">设备信息</span>
                 <strong data-meta-device>--</strong>
               </div>
+              <div class="meta-card">
+                <span class="meta-label">设备指纹</span>
+                <strong data-meta-fingerprint>--</strong>
+              </div>
+              <div class="meta-card">
+                <span class="meta-label">相同指纹成员数</span>
+                <strong data-meta-fingerprint-count>--</strong>
+              </div>
+              <div class="meta-card meta-card--wide is-hidden" data-meta-fingerprint-members-wrap>
+                <span class="meta-label">其他相同指纹成员</span>
+                <ul class="meta-related-list" data-meta-fingerprint-members></ul>
+              </div>
             </div>
 
             <p class="form-feedback" data-form-feedback></p>

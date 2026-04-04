@@ -37,7 +37,9 @@ if (form) {
   const qrcodePreview = form.querySelector('[data-qrcode-preview]');
   const qrcodePreviewImage = form.querySelector('[data-qrcode-preview-image]');
   const qrcodeClearButton = form.querySelector('[data-qrcode-clear]');
+  const fingerprintField = form.querySelector('[data-device-fingerprint]');
   const confettiColors = ['#d94f33', '#ffd84d', '#4c8df6', '#f6b14f', '#d970d8', '#f5bccd', '#d27b2d', '#5d6ad8', '#a9d7ee'];
+  const fingerprintStorageKey = 'vip-signup-device-fingerprint-v1';
   let currentStep = 1;
 
   const contactCopyMap = {
@@ -59,6 +61,103 @@ if (form) {
   };
   let qrcodePreviewUrl = '';
   let isSubmitting = false;
+
+  const buildFingerprintSource = () => {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    const nav = window.navigator || {};
+    const screenInfo = window.screen || {};
+
+    return [
+      nav.userAgent || '',
+      nav.language || '',
+      Array.isArray(nav.languages) ? nav.languages.join(',') : '',
+      nav.platform || '',
+      String(nav.hardwareConcurrency || ''),
+      String(nav.deviceMemory || ''),
+      timezone,
+      String(screenInfo.width || ''),
+      String(screenInfo.height || ''),
+      String(screenInfo.colorDepth || ''),
+      String(window.devicePixelRatio || ''),
+      String('ontouchstart' in window),
+      String(new Date().getTimezoneOffset()),
+    ].join('|');
+  };
+
+  const hashFingerprint = async (value) => {
+    if (!value) {
+      return '';
+    }
+
+    if (window.crypto && window.crypto.subtle && typeof window.TextEncoder === 'function') {
+      const bytes = new window.TextEncoder().encode(value);
+      const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
+    let hash = 0;
+    for (let index = 0; index < value.length; index += 1) {
+      hash = ((hash << 5) - hash) + value.charCodeAt(index);
+      hash |= 0;
+    }
+
+    return `fallback-${Math.abs(hash)}`;
+  };
+
+  const readStoredFingerprint = () => {
+    try {
+      const value = window.localStorage.getItem(fingerprintStorageKey) || '';
+      return String(value).trim();
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const writeStoredFingerprint = (value) => {
+    if (!value) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(fingerprintStorageKey, value);
+    } catch (error) {
+      // Ignore storage failures.
+    }
+  };
+
+  const generatePersistentFingerprint = async () => {
+    const existing = readStoredFingerprint();
+    if (existing) {
+      return existing;
+    }
+
+    const nav = window.navigator || {};
+    const entropy = [
+      buildFingerprintSource(),
+      typeof window.crypto?.randomUUID === 'function' ? window.crypto.randomUUID() : '',
+      String(Date.now()),
+      String(Math.random()),
+      nav.userAgent || '',
+    ].join('|');
+
+    const fingerprint = await hashFingerprint(entropy);
+    writeStoredFingerprint(fingerprint);
+    return fingerprint;
+  };
+
+  const populateFingerprint = async () => {
+    if (!fingerprintField) {
+      return;
+    }
+
+    try {
+      fingerprintField.value = await generatePersistentFingerprint();
+    } catch (error) {
+      fingerprintField.value = '';
+    }
+  };
 
   const getVisibleLength = (value) => value.trim().length;
 
@@ -336,7 +435,7 @@ if (form) {
     clearQrcodePreview();
   });
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     if (isSubmitting) {
       event.preventDefault();
       return;
@@ -364,6 +463,7 @@ if (form) {
     }
 
     const submitUrl = form.action;
+    await populateFingerprint();
     const formData = new FormData(form);
     setSubmitFeedback('');
     setSubmittingState(true);
@@ -400,4 +500,5 @@ if (form) {
   updateReasonFieldState();
   updateContactFieldState();
   updateStepUI();
+  populateFingerprint();
 }

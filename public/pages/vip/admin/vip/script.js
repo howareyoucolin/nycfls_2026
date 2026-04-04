@@ -11,6 +11,7 @@
     userEmail: '',
     viewerRole: '',
     item: null,
+    sameFingerprintMembers: [],
     initialSnapshot: '',
     pendingRequests: 0,
   };
@@ -60,7 +61,11 @@
     metaApprovedBy: app.querySelector('[data-meta-approved-by]'),
     metaApprovedAt: app.querySelector('[data-meta-approved-at]'),
     metaIpLocation: app.querySelector('[data-meta-ip-location]'),
+    metaFingerprint: app.querySelector('[data-meta-fingerprint]'),
     metaDevice: app.querySelector('[data-meta-device]'),
+    metaFingerprintCount: app.querySelector('[data-meta-fingerprint-count]'),
+    metaFingerprintMembersWrap: app.querySelector('[data-meta-fingerprint-members-wrap]'),
+    metaFingerprintMembers: app.querySelector('[data-meta-fingerprint-members]'),
   };
 
   const vipId = Number(app.dataset.adminVipId || 0);
@@ -338,6 +343,28 @@
     });
   }
 
+  function formatFingerprint(value) {
+    const fingerprint = String(value || '').trim();
+    if (!fingerprint) {
+      return '暂无数据';
+    }
+
+    if (fingerprint.length <= 10) {
+      return fingerprint;
+    }
+
+    return `${fingerprint.slice(0, 10)}...`;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
   function setEditorEnabled(enabled) {
     const controls = els.form.querySelectorAll('input, select, textarea, button');
     controls.forEach((control) => {
@@ -356,6 +383,7 @@
 
   function renderForm() {
     const item = state.item;
+    const sameFingerprintMembers = Array.isArray(state.sameFingerprintMembers) ? state.sameFingerprintMembers : [];
 
     if (!item) {
       els.title.textContent = '未找到该报名资料';
@@ -403,11 +431,28 @@
     els.metaApprovedBy.textContent = item.approved_by || '暂无数据';
     els.metaApprovedAt.textContent = formatDateTime(item.approved_at, Number(item.is_approved) === 1 ? '暂无记录' : '未审核');
     els.metaIpLocation.textContent = item.ip_lookup_location || item.ip_address || '暂无数据';
+    els.metaFingerprint.textContent = formatFingerprint(item.fingerprint);
     els.metaDevice.textContent = [
       item.device_type || '',
       [item.browser_name, item.browser_version].filter(Boolean).join(' '),
       [item.os_name, item.os_version].filter(Boolean).join(' '),
     ].filter(Boolean).join(' · ') || '暂无数据';
+    els.metaFingerprintCount.textContent = item.fingerprint ? String(Number(item.same_fingerprint_count || 0)) : '暂无数据';
+    if (els.metaFingerprintMembersWrap && els.metaFingerprintMembers) {
+      const shouldShowRelated = sameFingerprintMembers.length > 0 && Number(item.same_fingerprint_count || 0) > 1;
+      els.metaFingerprintMembersWrap.classList.toggle('is-hidden', !shouldShowRelated);
+      if (shouldShowRelated) {
+        els.metaFingerprintMembers.innerHTML = sameFingerprintMembers.map((member) => `
+          <li class="meta-related-item">
+            <a class="meta-related-link" href="/vip/admin/vip/${Number(member.id)}${Number(member.is_deleted) === 1 ? '?from=deleted' : ''}">
+              #${Number(member.id)} ${escapeHtml(member.nickname || '未命名成员')}
+            </a>
+          </li>
+        `).join('');
+      } else {
+        els.metaFingerprintMembers.innerHTML = '';
+      }
+    }
 
     const isDeleted = Number(item.is_deleted) === 1;
     syncBackLinks(isDeleted);
@@ -489,6 +534,7 @@
     setFormFeedback('正在加载报名资料...', false);
     const data = await apiFetch(`/api/vip-admin-item.php?id=${encodeURIComponent(String(vipId))}`, { method: 'GET' }, '正在获取报名资料...');
     state.item = data && data.data ? data.data.item : null;
+    state.sameFingerprintMembers = Array.isArray(data && data.data ? data.data.same_fingerprint_members : null) ? data.data.same_fingerprint_members : [];
     state.viewerRole = String(data && data.data && data.data.viewer ? data.data.viewer.role || '' : '');
     syncUsersNav();
     renderForm();

@@ -383,6 +383,25 @@ function collect_vip_meta(?int $vipId = null): array
     ));
     $lookupCandidates = $lookupReadyIpCandidates !== [] ? $lookupReadyIpCandidates : [];
     $lookupResult = resolve_ip_lookup_location($lookupCandidates);
+    $fingerprint = trim((string) ($_POST['fingerprint'] ?? ''));
+    if ($fingerprint === '') {
+        $fingerprintSource = implode('|', [
+            $userAgent,
+            trim((string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '')),
+            trim((string) ($_SERVER['HTTP_SEC_CH_UA'] ?? '')),
+            trim((string) ($_SERVER['HTTP_SEC_CH_UA_PLATFORM'] ?? '')),
+            trim((string) ($_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? '')),
+            detect_device_type($userAgent),
+            $browserName,
+            $browserVersion,
+            $osName,
+            $osVersion,
+        ]);
+
+        if ($fingerprintSource !== '') {
+            $fingerprint = hash('sha256', $fingerprintSource);
+        }
+    }
 
     return [
         'vip_id' => $vipId,
@@ -395,6 +414,7 @@ function collect_vip_meta(?int $vipId = null): array
         'os_name' => $osName,
         'os_version' => $osVersion,
         'device_type' => detect_device_type($userAgent),
+        'fingerprint' => $fingerprint,
         'ip_lookup_location' => $lookupResult['location'],
         'extra_payload' => json_encode([
             'resolved_client_ip' => $ipAddress,
@@ -423,6 +443,7 @@ function store_vip_meta(PDO $pdo, array $meta): void
             os_name,
             os_version,
             device_type,
+            fingerprint,
             ip_lookup_location,
             extra_payload
         ) VALUES (
@@ -436,6 +457,7 @@ function store_vip_meta(PDO $pdo, array $meta): void
             :os_name,
             :os_version,
             :device_type,
+            :fingerprint,
             :ip_lookup_location,
             :extra_payload
         )'
@@ -452,6 +474,7 @@ function store_vip_meta(PDO $pdo, array $meta): void
         ':os_name' => $meta['os_name'],
         ':os_version' => $meta['os_version'],
         ':device_type' => $meta['device_type'],
+        ':fingerprint' => $meta['fingerprint'] !== '' ? $meta['fingerprint'] : null,
         ':ip_lookup_location' => $meta['ip_lookup_location'],
         ':extra_payload' => $meta['extra_payload'],
     ]);

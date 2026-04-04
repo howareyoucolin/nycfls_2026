@@ -1,3 +1,8 @@
+<?php
+declare(strict_types=1);
+
+$signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
+?>
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -34,6 +39,7 @@
     </div>
 
     <form method="post" action="/actions/vip-signup-submit.php" enctype="multipart/form-data" novalidate data-multistep-form>
+      <input type="hidden" name="fingerprint" value="" data-device-fingerprint>
       <section class="section step-panel is-active" data-step-panel="1">
         <p class="section-title">步骤 1 / 基本信息</p>
         <div class="fields">
@@ -211,6 +217,6 @@
       </div>
     </section>
   </main>
-  <script src="/pages/vip/signup/script.js" defer></script>
+  <script src="/pages/vip/signup/script.js?v=<?php echo urlencode($signupScriptVersion); ?>" defer></script>
 </body>
 </html>

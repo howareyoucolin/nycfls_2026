@@ -382,6 +382,23 @@ function vip_public_origin(): string
       <?php render_pagination($page, $totalPages, $paginationItems); ?>
     <?php endif; ?>
   </main>
+
+  <div class="vip-copy-modal is-hidden" data-copy-modal aria-hidden="true">
+    <button
+      type="button"
+      class="vip-copy-modal-backdrop"
+      data-copy-modal-close
+      aria-label="关闭提示"
+    ></button>
+    <div class="vip-copy-dialog" role="dialog" aria-modal="true" aria-labelledby="vip-copy-modal-title">
+      <p class="eyebrow">VIP DIRECTORY</p>
+      <h2 id="vip-copy-modal-title" data-copy-modal-title>已复制</h2>
+      <p class="vip-copy-modal-text" data-copy-modal-text>内容已复制。</p>
+      <div class="vip-copy-modal-actions">
+        <button type="button" class="vip-search-button vip-copy-confirm" data-copy-modal-close>知道了</button>
+      </div>
+    </div>
+  </div>
   <script src="/pages/vip/script.js" defer></script>
 </body>
 </html>
