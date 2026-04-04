@@ -15,18 +15,18 @@ declare(strict_types=1);
     <section class="download-hero">
       <p class="eyebrow">DOWNLOAD</p>
       <h1>下载安装</h1>
-      <p class="download-copy">这里先提供一个 Hello World PWA 测试版本。手机打开后可以直接体验，并可尝试添加到主屏幕。</p>
+      <p class="download-copy">这里提供 VIP Admin 手机版网页应用，手机打开后可直接进入后台，也可添加到主屏幕使用。</p>
     </section>
 
     <section class="download-card">
       <div class="download-card-copy">
-        <p class="download-kicker">Test Build</p>
-        <h2>Hello World PWA</h2>
-        <p>适合先快速验证手机访问、安装体验和主页图标流程，不需要原生打包。</p>
+        <p class="download-kicker">PWA</p>
+        <h2>VIP Admin</h2>
+        <p>打开后会直接进入完整 VIP Admin 后台，全屏显示站点内容，不再有额外应用壳层。</p>
       </div>
 
       <div class="download-actions">
-        <a class="primary-button download-button" href="/download/admin-pwa/index.html">打开测试版</a>
+        <a class="primary-button download-button" href="/download/admin-pwa/index.html">打开应用</a>
         <p class="download-footnote">iPhone 可用 Safari 打开后选择“添加到主屏幕”；Android 可直接安装为网页应用。</p>
       </div>
     </section>

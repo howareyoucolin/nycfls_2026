@@ -14,37 +14,13 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <main class="app-shell">
-    <section class="app-frame">
-      <header class="app-topbar">
-        <div class="topbar-copy">
-          <p class="eyebrow">VIP ADMIN APP</p>
-          <h1>移动后台</h1>
-        </div>
-        <div class="topbar-actions">
-          <div class="status-pill">
-            <span class="status-pill-label">未读</span>
-            <strong class="status-pill-value" data-unread-count>--</strong>
-          </div>
-          <button class="install-button is-hidden" type="button" data-install-button>安装</button>
-          <a class="open-button" href="/vip/admin/vips/" target="_blank" rel="noreferrer">新窗口打开</a>
-        </div>
-      </header>
-
-      <p class="status-note" data-status-note>正在加载管理员未读数据...</p>
-
-      <div class="iframe-shell">
-        <iframe
-          class="admin-iframe"
-          src="/vip/admin/vips/"
-          title="VIP Admin"
-          loading="eager"
-          referrerpolicy="same-origin"
-        ></iframe>
-      </div>
-    </section>
-  </main>
-  <script src="/pages/vip/admin/auth.js" defer></script>
+  <iframe
+    class="admin-iframe"
+    src="/vip/admin/vips/"
+    title="VIP Admin"
+    loading="eager"
+    referrerpolicy="same-origin"
+  ></iframe>
   <script src="./app.js" defer></script>
 </body>
 </html>
