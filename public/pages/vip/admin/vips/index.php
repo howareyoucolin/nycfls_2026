@@ -80,6 +80,19 @@ $pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/vips/scrip
               <h2>报名列表</h2>
             </div>
             <div class="sidebar-top-actions">
+              <a
+                class="refresh-icon-button"
+                href="/vip"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="预览 VIP 页面"
+                title="预览 VIP 页面"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+              </a>
               <button type="button" class="refresh-icon-button" data-admin-refresh aria-label="刷新列表" title="刷新列表">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M20 12a8 8 0 1 1-2.34-5.66" />

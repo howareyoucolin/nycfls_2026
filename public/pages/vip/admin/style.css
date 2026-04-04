@@ -669,6 +669,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  text-decoration: none;
   border: 1px solid rgba(195, 145, 89, 0.22);
   border-radius: 16px;
   background: linear-gradient(180deg, #fffaf3 0%, #f7ecdf 100%);
