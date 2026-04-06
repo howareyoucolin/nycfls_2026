@@ -41,7 +41,6 @@
     deleteTrigger: app.querySelector('[data-admin-delete-trigger]'),
     title: app.querySelector('[data-editor-title]'),
     feedback: app.querySelector('[data-form-feedback]'),
-    readToggle: app.querySelector('[data-admin-read-toggle]'),
     approveToggle: app.querySelector('[data-admin-approve-toggle]'),
     contactInfoField: app.querySelector('[data-contact-info-field]'),
     qrcodePathField: app.querySelector('[data-qrcode-path-field]'),
@@ -76,14 +75,24 @@
   const loginRouteWithTokenInvalid = `${loginRoute}?reason=token_invalid`;
   const initialParams = new URLSearchParams(window.location.search);
   const cameFromDeleted = initialParams.get('from') === 'deleted';
+  const returnTo = sanitizeReturnPath(initialParams.get('return'));
   const mobileDrawerQuery = window.matchMedia('(max-width: 899px)');
   const auth = window.VipAdminAuth;
   let qrcodePreviewUrl = '';
 
+  function sanitizeReturnPath(value) {
+    const raw = typeof value === 'string' ? value.trim() : '';
+    if (!raw.startsWith('/vip/admin/vips/')) {
+      return '';
+    }
+
+    return raw;
+  }
+
   function syncBackLinks(isDeleted) {
-    const shouldGoToTrash = Boolean(isDeleted) || cameFromDeleted;
-    const href = shouldGoToTrash ? '/vip/admin/vips/?status=deleted' : '/vip/admin/vips/';
-    const label = shouldGoToTrash ? '返回回收站' : '返回列表';
+    const fallbackHref = (Boolean(isDeleted) || cameFromDeleted) ? '/vip/admin/vips/?status=deleted' : '/vip/admin/vips/';
+    const href = returnTo || fallbackHref;
+    const label = href.includes('status=deleted') ? '返回回收站' : '返回列表';
 
     els.backLinks.forEach((link) => {
       link.href = href;
@@ -189,7 +198,6 @@
       contact_type: els.form.elements.contact_type.value,
       contact_info: els.form.elements.contact_info.value.trim(),
       contact_qrcode_path: els.form.elements.contact_qrcode_path.value.trim(),
-      is_read: Boolean(els.readToggle.checked),
       is_approved: Boolean(els.approveToggle.checked),
     });
   }
@@ -415,7 +423,6 @@
     els.form.elements.contact_info.value = item.contact_info || '';
     els.form.elements.contact_qrcode_path.value = item.contact_qrcode_path || '';
     els.form.elements.intro_text.value = item.intro_text || '';
-    els.readToggle.checked = Number(item.is_read) === 1;
     els.approveToggle.checked = Number(item.is_approved) === 1;
 
     const isQrcode = item.contact_type === 'qrcode';
@@ -449,7 +456,10 @@
       if (shouldShowRelated) {
         els.metaFingerprintMembers.innerHTML = sameFingerprintMembers.map((member) => `
           <li class="meta-related-item">
-            <a class="meta-related-link" href="/vip/admin/vip/${Number(member.id)}${Number(member.is_deleted) === 1 ? '?from=deleted' : ''}">
+            <a class="meta-related-link" href="/vip/admin/vip/${Number(member.id)}?${new URLSearchParams({
+              ...(Number(member.is_deleted) === 1 ? { from: 'deleted' } : {}),
+              ...(returnTo ? { return: returnTo } : {}),
+            }).toString()}">
               #${Number(member.id)} ${escapeHtml(member.nickname || '未命名成员')}
             </a>
           </li>
@@ -685,7 +695,7 @@
 
       try {
         await deleteVip();
-        window.location.href = '/vip/admin/vips/?status=deleted';
+        window.location.href = returnTo || '/vip/admin/vips/?status=deleted';
       } catch (error) {
         setDeleteModalOpen(false);
         setFormFeedback(error.message || '删除失败。', true);
@@ -794,7 +804,6 @@
     field.addEventListener('change', syncDirtyState);
   });
 
-  els.readToggle.addEventListener('change', syncDirtyState);
   els.approveToggle.addEventListener('change', syncDirtyState);
 
   els.form.addEventListener('submit', async (event) => {
@@ -815,7 +824,6 @@
       contact_type: els.form.elements.contact_type.value,
       contact_info: els.form.elements.contact_info.value.trim(),
       contact_qrcode_path: els.form.elements.contact_qrcode_path.value.trim(),
-      is_read: els.readToggle.checked,
       is_approved: els.approveToggle.checked,
     };
 

@@ -24,10 +24,9 @@ $introText = trim((string) ($payload['intro_text'] ?? ''));
 $contactTypeRaw = trim((string) ($payload['contact_type'] ?? ''));
 $contactInfoRaw = trim((string) ($payload['contact_info'] ?? ''));
 $contactQrcodePathRaw = trim((string) ($payload['contact_qrcode_path'] ?? ''));
-$isRead = filter_var($payload['is_read'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 $isApproved = filter_var($payload['is_approved'] ?? false, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-if ($nickname === '' || $generation === '' || $gender === '' || $location === '' || $joinReason === '' || $introText === '' || $isRead === null || $isApproved === null) {
+if ($nickname === '' || $generation === '' || $gender === '' || $location === '' || $joinReason === '' || $introText === '' || $isApproved === null) {
     api_error('missing_fields', 'Please fill out all required fields.', 422);
 }
 
@@ -70,7 +69,7 @@ if ($contactType !== null && $contactType !== 'qrcode' && $contactInfo === null)
 try {
     $pdo = db();
 
-    $existingStatement = $pdo->prepare('SELECT is_approved FROM vips WHERE id = :id AND is_deleted = 0 LIMIT 1');
+    $existingStatement = $pdo->prepare('SELECT is_approved, is_read FROM vips WHERE id = :id AND is_deleted = 0 LIMIT 1');
     $existingStatement->execute([':id' => $id]);
     $existingRow = $existingStatement->fetch();
 
@@ -79,6 +78,7 @@ try {
     }
 
     $previousApproval = (int) ($existingRow['is_approved'] ?? 0) === 1;
+    $currentRead = (int) ($existingRow['is_read'] ?? 0) === 1;
     $actorLabel = (string) ($claims['_actor_label'] ?? $claims['sub'] ?? 'admin');
 
     $approvedBy = null;
@@ -129,7 +129,7 @@ try {
         ':contact_type' => $contactType,
         ':contact_info' => $contactInfo,
         ':contact_qrcode_path' => $contactQrcodePath,
-        ':is_read' => $isRead ? 1 : 0,
+        ':is_read' => $currentRead ? 1 : 0,
         ':is_approved' => $isApproved ? 1 : 0,
         ':approved_by' => $approvedBy,
         ':approved_at' => $approvedAt,

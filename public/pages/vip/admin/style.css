@@ -995,6 +995,7 @@
 .signup-item {
   width: 100%;
   padding: 14px 15px;
+  position: relative;
   border-radius: 18px;
   border: 1px solid rgba(111, 83, 51, 0.08);
   background: rgba(255, 255, 255, 0.88);
@@ -1007,6 +1008,7 @@
 .signup-item-link {
   display: block;
   text-decoration: none;
+  color: inherit;
 }
 
 .signup-item:hover,
@@ -1020,7 +1022,7 @@
 .signup-item-top,
 .signup-item-meta {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
@@ -1028,9 +1030,10 @@
 .signup-item-statuses {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 6px;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 5px;
+  margin-top: 8px;
 }
 
 .signup-item-top strong {
@@ -1044,9 +1047,25 @@
   color: #7f6b5a;
 }
 
-.signup-item-status {
-  padding: 5px 10px;
+.signup-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  position: absolute;
+  top: 10px;
+  right: 12px;
+}
+
+.signup-item-action {
+  min-height: 26px;
+  padding: 0 9px;
   font-size: 11px;
+  border-radius: 12px;
+  opacity: 0.8;
+}
+
+.signup-item-status {
+  padding: 3px 8px;
+  font-size: 10px;
   white-space: nowrap;
 }
 

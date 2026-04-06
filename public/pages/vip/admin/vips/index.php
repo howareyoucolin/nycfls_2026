@@ -139,6 +139,23 @@ $pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/vips/scrip
       </div>
     </section>
   </main>
+  <div class="admin-confirm-modal is-hidden" data-admin-unread-modal aria-hidden="true">
+    <button
+      type="button"
+      class="admin-confirm-backdrop"
+      data-admin-unread-close
+      aria-label="关闭设为未读确认弹窗"
+    ></button>
+    <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="vip-unread-title">
+      <p class="state-kicker">VIP Admin</p>
+      <h2 id="vip-unread-title">确认设为未读？</h2>
+      <p class="admin-confirm-copy" data-admin-unread-copy>这条资料会重新回到未读列表。</p>
+      <div class="admin-confirm-actions">
+        <button type="button" class="ghost-button" data-admin-unread-close>取消</button>
+        <button type="button" class="primary-button" data-admin-unread-confirm>确认</button>
+      </div>
+    </div>
+  </div>
   <script src="/pages/vip/admin/auth.js?v=<?php echo urlencode($authScriptVersion); ?>" defer></script>
   <script src="/pages/vip/admin/vips/script.js?v=<?php echo urlencode($pageScriptVersion); ?>" defer></script>
 </body>

@@ -99,10 +99,6 @@ if ($vipId <= 0) {
               </div>
               <div class="editor-actions">
                 <label class="toggle-pill">
-                  <input type="checkbox" name="is_read" data-admin-read-toggle>
-                  <span>已读</span>
-                </label>
-                <label class="toggle-pill">
                   <input type="checkbox" name="is_approved" data-admin-approve-toggle>
                   <span>审核通过</span>
                 </label>

@@ -19,6 +19,7 @@
     totalItems: 0,
     totalPages: 1,
     pendingRequests: 0,
+    pendingUnreadId: 0,
   };
 
   const els = {
@@ -42,6 +43,10 @@
     markAllReadButton: app.querySelector('[data-admin-mark-all-read]'),
     refreshButton: app.querySelector('[data-admin-refresh]'),
     retryButton: app.querySelector('[data-admin-retry]'),
+    unreadModal: document.querySelector('[data-admin-unread-modal]'),
+    unreadCopy: document.querySelector('[data-admin-unread-copy]'),
+    unreadConfirmButton: document.querySelector('[data-admin-unread-confirm]'),
+    unreadCloseButtons: Array.from(document.querySelectorAll('[data-admin-unread-close]')),
     signoutButtons: Array.from(app.querySelectorAll('[data-admin-signout]')),
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
     debugLinks: Array.from(app.querySelectorAll('[data-admin-debug-link]')),
@@ -152,6 +157,36 @@
     const shouldShow = state.status === 'unread' && Number(state.counts.unread || 0) > 0;
     els.markAllReadButton.classList.toggle('is-hidden', !shouldShow);
     els.markAllReadButton.disabled = !shouldShow;
+  }
+
+  function setUnreadModalOpen(isOpen) {
+    if (!els.unreadModal) {
+      return;
+    }
+
+    if (!isOpen) {
+      state.pendingUnreadId = 0;
+    }
+
+    els.unreadModal.classList.toggle('is-hidden', !isOpen);
+    els.unreadModal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    document.body.classList.toggle('admin-modal-open', isOpen);
+  }
+
+  function openUnreadModal(itemId) {
+    const item = state.items.find((entry) => Number(entry.id) === Number(itemId));
+    if (!item) {
+      return;
+    }
+
+    state.pendingUnreadId = Number(item.id);
+
+    if (els.unreadCopy) {
+      const label = String(item.nickname || `#${item.id}`).trim();
+      els.unreadCopy.textContent = `${label} 会重新回到未读列表。`;
+    }
+
+    setUnreadModalOpen(true);
   }
 
   function formatDateTime(value) {
@@ -341,6 +376,8 @@
     }
 
     setListFeedback('', false);
+    const returnPath = `${window.location.pathname}${window.location.search}`;
+    const returnQuery = `return=${encodeURIComponent(returnPath)}`;
     els.list.innerHTML = state.items.map((item) => {
       const badges = [];
       if (Number(item.is_deleted) === 1) {
@@ -356,26 +393,45 @@
         });
       }
       const meta = [item.generation ? `${item.generation}后` : '', item.location || ''].filter(Boolean).join(' · ');
+      const itemParams = new URLSearchParams(returnQuery);
+      if (Number(item.is_deleted) === 1) {
+        itemParams.set('from', 'deleted');
+      }
+      const canMarkUnread = Number(item.is_deleted) !== 1 && Number(item.is_read) === 1;
 
       return `
-        <a class="signup-item signup-item-link" href="/vip/admin/vip/${Number(item.id)}${Number(item.is_deleted) === 1 ? '?from=deleted' : ''}">
-          <div class="signup-item-top">
-            <div>
-              <strong>${escapeHtml(item.nickname || `#${item.id}`)}</strong>
-              <div>${escapeHtml(meta || '未填写')}</div>
+        <article class="signup-item">
+          ${canMarkUnread ? `
+            <div class="signup-item-actions">
+              <button type="button" class="ghost-button signup-item-action" data-mark-unread-id="${Number(item.id)}">设为未读</button>
+            </div>
+          ` : ''}
+          <a class="signup-item-link" href="/vip/admin/vip/${Number(item.id)}?${itemParams.toString()}">
+            <div class="signup-item-top">
+              <div>
+                <strong>${escapeHtml(item.nickname || `#${item.id}`)}</strong>
+                <div>${escapeHtml(meta || '未填写')}</div>
+              </div>
             </div>
             <div class="signup-item-statuses">
               ${badges.map((badge) => `<span class="signup-item-status ${badge.className}">${escapeHtml(badge.label)}</span>`).join('')}
             </div>
-          </div>
-          <div class="signup-item-meta">
-            <span>#${Number(item.id)}</span>
-            <span>${escapeHtml(formatDateTime(item.created_at))}</span>
-          </div>
-        </a>
+            <div class="signup-item-meta">
+              <span>#${Number(item.id)}</span>
+              <span>${escapeHtml(formatDateTime(item.created_at))}</span>
+            </div>
+          </a>
+        </article>
       `;
     }).join('');
     renderPagination();
+  }
+
+  async function markUnread(itemId) {
+    await apiFetch('/api/vip-admin-mark-unread.php', {
+      method: 'POST',
+      body: JSON.stringify({ id: itemId }),
+    }, '正在标记为未读...');
   }
 
   async function apiFetch(path, options, reason) {
@@ -539,6 +595,10 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      if (els.unreadModal && !els.unreadModal.classList.contains('is-hidden')) {
+        setUnreadModalOpen(false);
+        return;
+      }
       closeDrawer();
     }
   });
@@ -652,6 +712,49 @@
       setListFeedback(error.message || '筛选失败。', true);
     });
   });
+
+  els.list.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-mark-unread-id]');
+    if (!button) {
+      return;
+    }
+
+    const itemId = Number(button.getAttribute('data-mark-unread-id') || '0');
+    if (!Number.isFinite(itemId) || itemId <= 0) {
+      return;
+    }
+
+    openUnreadModal(itemId);
+  });
+
+  els.unreadCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setUnreadModalOpen(false);
+    });
+  });
+
+  if (els.unreadConfirmButton) {
+    els.unreadConfirmButton.addEventListener('click', async () => {
+      if (!state.pendingUnreadId) {
+        setUnreadModalOpen(false);
+        return;
+      }
+
+      els.unreadConfirmButton.disabled = true;
+      setListFeedback('正在标记为未读...', false);
+
+      try {
+        await markUnread(state.pendingUnreadId);
+        setUnreadModalOpen(false);
+        await fetchItems();
+        setListFeedback('已设为未读。', false);
+      } catch (error) {
+        setListFeedback(error.message || '设为未读失败。', true);
+      } finally {
+        els.unreadConfirmButton.disabled = false;
+      }
+    });
+  }
 
   updateCounts();
   syncBulkReadAction();
