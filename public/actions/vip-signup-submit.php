@@ -28,6 +28,120 @@ function post_string(string $key): string
     return trim((string) ($_POST[$key] ?? ''));
 }
 
+function app_config_value(string $envKey, string $constKey, string $default = ''): string
+{
+    $envValue = getenv($envKey);
+    if (is_string($envValue) && trim($envValue) !== '') {
+        return trim($envValue);
+    }
+
+    if (defined($constKey)) {
+        $constValue = constant($constKey);
+        if (is_string($constValue) && trim($constValue) !== '') {
+            return trim($constValue);
+        }
+    }
+
+    return $default;
+}
+
+function app_base_url(): string
+{
+    $configured = app_config_value('APP_BASE_URL', 'APP_BASE_URL', '');
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return '';
+    }
+
+    return app_request_scheme() . '://' . $host;
+}
+
+function telegram_post_request(string $url, array $payload): bool
+{
+    try {
+        if (function_exists('curl_init')) {
+            $curlHandle = curl_init($url);
+            curl_setopt_array($curlHandle, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 4,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+            $responseBody = curl_exec($curlHandle);
+            $httpCode = (int) curl_getinfo($curlHandle, CURLINFO_RESPONSE_CODE);
+            curl_close($curlHandle);
+
+            return is_string($responseBody) && $responseBody !== '' && $httpCode >= 200 && $httpCode < 300;
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'timeout' => 4,
+                'ignore_errors' => true,
+                'header' => "Content-Type: application/json\r\n",
+                'content' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ],
+        ]);
+
+        $responseBody = @file_get_contents($url, false, $context);
+        return is_string($responseBody) && $responseBody !== '';
+    } catch (Throwable $exception) {
+        return false;
+    }
+}
+
+function send_telegram_signup_notification(array $signup): void
+{
+    $botToken = app_config_value('TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_TOKEN', '');
+    $chatId = app_config_value('TELEGRAM_CHAT_ID', 'TELEGRAM_CHAT_ID', '');
+
+    if ($botToken === '' || $chatId === '') {
+        return;
+    }
+
+    $vipId = (int) ($signup['id'] ?? 0);
+    $baseUrl = app_base_url();
+    $adminUrl = $vipId > 0 && $baseUrl !== '' ? $baseUrl . '/vip/admin/vip/' . $vipId : '';
+    $contactLine = '不公开';
+
+    if (($signup['contact_type'] ?? null) === 'qrcode') {
+        $contactLine = '二维码';
+    } elseif (!empty($signup['contact_type']) && !empty($signup['contact_info'])) {
+        $contactLine = (string) $signup['contact_type'] . ': ' . (string) $signup['contact_info'];
+    }
+
+    $messageLines = [
+        'New VIP signup submitted',
+        'ID: #' . $vipId,
+        '昵称: ' . (string) ($signup['nickname'] ?? ''),
+        '年代: ' . (string) ($signup['generation'] ?? ''),
+        '性别: ' . (string) ($signup['gender'] ?? ''),
+        '地区: ' . (string) ($signup['location'] ?? ''),
+        '原因: ' . (string) ($signup['join_reason'] ?? ''),
+        '联系: ' . $contactLine,
+    ];
+
+    if ($adminUrl !== '') {
+        $messageLines[] = 'Admin: ' . $adminUrl;
+    }
+
+    telegram_post_request(
+        'https://api.telegram.org/bot' . rawurlencode($botToken) . '/sendMessage',
+        [
+            'chat_id' => $chatId,
+            'text' => implode("\n", $messageLines),
+            'disable_web_page_preview' => true,
+        ]
+    );
+}
+
 function create_image_resource(string $tmpPath, string $mimeType): ?GdImage
 {
     return match ($mimeType) {
@@ -701,6 +815,16 @@ try {
 
     $vipId = (int) $pdo->lastInsertId();
     store_vip_meta($pdo, collect_vip_meta($vipId));
+    send_telegram_signup_notification([
+        'id' => $vipId,
+        'nickname' => $nickname,
+        'generation' => $generation,
+        'gender' => $gender,
+        'location' => $location,
+        'join_reason' => $joinReason,
+        'contact_type' => $normalizedContactType,
+        'contact_info' => $contactInfo,
+    ]);
 } catch (Throwable $exception) {
     respond(500, [
         'ok' => false,

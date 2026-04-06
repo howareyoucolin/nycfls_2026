@@ -24,7 +24,7 @@ jobs:
 
           printf '%s' "${DEPLOY_CONFIG_JSON}" | jq empty
 
-          required_keys='["ssh_key","host","user","remote_path","db_host","db_name","db_username","db_password"]'
+          required_keys='["ssh_key","host","user","remote_path","db_host","db_name","db_username","db_password","app_base_url","telegram_bot_token","telegram_chat_id"]'
           missing_keys=$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r --argjson required "${required_keys}" '$required - (keys_unsorted)')
 
           if [ "${missing_keys}" != "[]" ]; then
@@ -43,10 +43,15 @@ jobs:
             echo "DH_PROD_DB_NAME=$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.db_name')"
             echo "DH_PROD_DB_USERNAME=$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.db_username')"
             echo "DH_PROD_DB_PASSWORD=$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.db_password')"
+            echo "DH_PROD_APP_BASE_URL=$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.app_base_url')"
+            echo "DH_PROD_TELEGRAM_BOT_TOKEN=$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.telegram_bot_token')"
+            echo "DH_PROD_TELEGRAM_CHAT_ID=$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.telegram_chat_id')"
           } >> "${GITHUB_ENV}"
 
           echo "::add-mask::$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.ssh_key')"
           echo "::add-mask::$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.db_password')"
+          echo "::add-mask::$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.telegram_bot_token')"
+          echo "::add-mask::$(printf '%s' "${DEPLOY_CONFIG_JSON}" | jq -r '.telegram_chat_id')"
 
       - name: Setup SSH
         run: |
@@ -86,6 +91,11 @@ jobs:
           define('DB_NAME', '${{ env.DH_PROD_DB_NAME }}');
           define('DB_USERNAME', '${{ env.DH_PROD_DB_USERNAME }}');
           define('DB_PASSWORD', '${{ env.DH_PROD_DB_PASSWORD }}');
+          define('APP_BASE_URL', '${{ env.DH_PROD_APP_BASE_URL }}');
+
+          // Telegram notifications (optional)
+          define('TELEGRAM_BOT_TOKEN', '${{ env.DH_PROD_TELEGRAM_BOT_TOKEN }}');
+          define('TELEGRAM_CHAT_ID', '${{ env.DH_PROD_TELEGRAM_CHAT_ID }}');
           EOF
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o IdentitiesOnly=yes /tmp/config.php ${SSH_USER}@${SSH_HOST}:${REMOTE_PATH}config.php
           rm -f /tmp/config.php
