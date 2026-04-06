@@ -115,6 +115,65 @@
     return collectClerkDebugData();
   }
 
+  function decodeJwtPayload(token) {
+    if (!token || typeof token !== 'string') {
+      return null;
+    }
+
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        return null;
+      }
+
+      return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function formatTimestamp(seconds) {
+    const numericSeconds = Number(seconds);
+    if (!Number.isFinite(numericSeconds) || numericSeconds <= 0) {
+      return '';
+    }
+
+    const date = new Date(numericSeconds * 1000);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  function describeSessionToken(token) {
+    const payload = decodeJwtPayload(token);
+    if (!payload) {
+      return 'session active; token details unavailable';
+    }
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const exp = Number(payload.exp || 0);
+    const iat = Number(payload.iat || 0);
+    const expiresAt = formatTimestamp(exp);
+    const lifetimeSeconds = exp > 0 && iat > 0 ? Math.max(0, exp - iat) : 0;
+    const lifetimeMinutes = lifetimeSeconds > 0 ? Math.round(lifetimeSeconds / 60) : 0;
+
+    if (exp > nowSeconds && expiresAt) {
+      const remainingMinutes = Math.max(0, Math.ceil((exp - nowSeconds) / 60));
+      const lifetimeSuffix = lifetimeMinutes > 0 ? `, ${lifetimeMinutes} min total` : '';
+      return `session active; token refreshes automatically, current token expires ${expiresAt} (${remainingMinutes} min left${lifetimeSuffix})`;
+    }
+
+    return 'session active; waiting for a fresh token';
+  }
+
   function debugLog(message) {
     const line = `${new Date().toISOString()} ${message}`;
     const entries = readDebugEntries();
@@ -265,9 +324,8 @@
     }
 
     try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      const payload = decodeJwtPayload(token);
+      if (payload) {
         debugState.lastTokenClaims = payload;
         debugLog(`token claims azp=${payload.azp || '[none]'} iss=${payload.iss || '[none]'} sub=${payload.sub || '[none]'}`);
       }
@@ -343,6 +401,8 @@
     buildLoginUrl,
     buildAccessDeniedUrl,
     clearDebugLog,
+    decodeJwtPayload,
+    describeSessionToken,
     debugEnabled,
     debugLog,
     getDebugLogEntries,

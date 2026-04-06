@@ -852,6 +852,56 @@
   word-break: break-word;
 }
 
+.token-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.token-status-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.token-status-item,
+.token-status-block {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(111, 83, 51, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.token-status-block {
+  margin-top: 8px;
+}
+
+.token-status-label {
+  margin: 0 0 4px;
+  color: #8b7158;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.token-status-value {
+  margin: 0;
+  color: #2f261f;
+  font-size: 14px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.token-status-pre {
+  margin: 0;
+  color: #42342a;
+  font: 11px/1.45 SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .users-empty {
   margin: 0;
   padding: 18px 20px;
@@ -1106,6 +1156,10 @@
 }
 
 @media (max-width: 560px) {
+  .token-status-grid {
+    grid-template-columns: 1fr;
+  }
+
   .user-row-bottom {
     flex-wrap: wrap;
   }

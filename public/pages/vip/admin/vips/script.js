@@ -9,6 +9,7 @@
     clerk: null,
     token: null,
     userEmail: '',
+    sessionStatus: 'session status checking...',
     viewerRole: '',
     items: [],
     counts: { all: 0, approved: 0, not_approved: 0, unread: 0, deleted: 0 },
@@ -45,6 +46,7 @@
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
     debugLinks: Array.from(app.querySelectorAll('[data-admin-debug-link]')),
     sessionEmail: app.querySelector('[data-admin-session-email]'),
+    sessionStatus: app.querySelector('[data-admin-session-status]'),
   };
 
   const publishableKey = app.dataset.clerkPublishableKey || '';
@@ -137,6 +139,9 @@
     }
 
     els.sessionEmail.textContent = state.userEmail ? `logged in as ${state.userEmail}` : 'logged in as ...';
+    if (els.sessionStatus) {
+      els.sessionStatus.textContent = state.sessionStatus || 'session status checking...';
+    }
   }
 
   function syncBulkReadAction() {
@@ -375,6 +380,7 @@
 
   async function apiFetch(path, options, reason) {
     startLoading(reason);
+    await ensureToken();
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
     headers.set('X-Clerk-Token', state.token);
@@ -415,11 +421,6 @@
   }
 
   async function ensureToken() {
-    if (state.token) {
-      auth.debugLog('vips token cache hit');
-      return;
-    }
-
     auth.debugLog('vips ensureToken start');
     const authState = await auth.requireToken(publishableKey, 'need_login');
     if (!authState) {
@@ -429,6 +430,7 @@
     state.clerk = authState.clerk;
     state.token = authState.token;
     state.userEmail = authState.userEmail || '';
+    state.sessionStatus = auth.describeSessionToken(authState.token);
     syncSessionEmail();
   }
 

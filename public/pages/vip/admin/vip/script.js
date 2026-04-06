@@ -9,6 +9,7 @@
     clerk: null,
     token: null,
     userEmail: '',
+    sessionStatus: 'session status checking...',
     viewerRole: '',
     item: null,
     sameFingerprintMembers: [],
@@ -32,6 +33,7 @@
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')),
     debugLinks: Array.from(app.querySelectorAll('[data-admin-debug-link]')),
     sessionEmail: app.querySelector('[data-admin-session-email]'),
+    sessionStatus: app.querySelector('[data-admin-session-status]'),
     backLinks: Array.from(app.querySelectorAll('[data-admin-back-link]')),
     form: app.querySelector('[data-admin-form]'),
     saveButton: app.querySelector('[data-admin-save]'),
@@ -320,6 +322,9 @@
     }
 
     els.sessionEmail.textContent = state.userEmail ? `logged in as ${state.userEmail}` : 'logged in as ...';
+    if (els.sessionStatus) {
+      els.sessionStatus.textContent = state.sessionStatus || 'session status checking...';
+    }
   }
 
   function formatDateTime(value, fallback) {
@@ -473,6 +478,7 @@
 
   async function apiFetch(path, options, reason) {
     startLoading(reason);
+    await ensureToken();
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
     headers.set('X-Clerk-Token', state.token);
@@ -513,11 +519,6 @@
   }
 
   async function ensureToken() {
-    if (state.token) {
-      auth.debugLog('vip token cache hit');
-      return;
-    }
-
     auth.debugLog('vip ensureToken start');
     const authState = await auth.requireToken(publishableKey, 'need_login');
     if (!authState) {
@@ -527,6 +528,7 @@
     state.clerk = authState.clerk;
     state.token = authState.token;
     state.userEmail = authState.userEmail || '';
+    state.sessionStatus = auth.describeSessionToken(authState.token);
     syncSessionEmail();
   }
 

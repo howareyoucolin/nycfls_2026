@@ -40,6 +40,14 @@ $adminNavCurrent = isset($adminNavCurrent) ? (string) $adminNavCurrent : 'vips';
       <span class="admin-nav-link-meta">查看最近调试日志</span>
     </a>
     <a
+      href="/vip/admin/token-status/"
+      class="admin-nav-link<?php echo $adminNavCurrent === 'token-status' ? ' is-active' : ''; ?>"
+      <?php echo $adminNavCurrent === 'token-status' ? ' aria-current="page"' : ''; ?>
+    >
+      <span class="admin-nav-link-label">Token Status</span>
+      <span class="admin-nav-link-meta">查看当前 Clerk token 状态</span>
+    </a>
+    <a
       href="/vip/admin/vips/"
       class="admin-nav-link<?php echo $adminNavCurrent === 'vips' || $adminNavCurrent === 'vip' ? ' is-active' : ''; ?>"
       <?php echo $adminNavCurrent === 'vips' || $adminNavCurrent === 'vip' ? ' aria-current="page"' : ''; ?>

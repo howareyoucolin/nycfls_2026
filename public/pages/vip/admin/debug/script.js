@@ -9,6 +9,7 @@
     clerk: null,
     token: null,
     userEmail: '',
+    sessionStatus: 'session status checking...',
     logs: [],
     pendingRequests: 0,
   };
@@ -29,6 +30,7 @@
     usersLinks: Array.from(app.querySelectorAll('[data-admin-users-link]')).filter(Boolean),
     debugLinks: Array.from(app.querySelectorAll('[data-admin-debug-link]')).filter(Boolean),
     sessionEmail: app.querySelector('[data-admin-session-email]'),
+    sessionStatus: app.querySelector('[data-admin-session-status]'),
     feedback: app.querySelector('[data-debug-feedback]'),
     list: app.querySelector('[data-debug-log-list]'),
   };
@@ -106,6 +108,9 @@
     }
 
     els.sessionEmail.textContent = state.userEmail ? `logged in as ${state.userEmail}` : 'logged in as ...';
+    if (els.sessionStatus) {
+      els.sessionStatus.textContent = state.sessionStatus || 'session status checking...';
+    }
   }
 
   function syncAdminNav() {
@@ -157,6 +162,7 @@
 
   async function apiFetch(path, options, reason) {
     startLoading(reason);
+    await ensureToken();
     const headers = new Headers(options && options.headers ? options.headers : {});
     headers.set('Authorization', `Bearer ${state.token}`);
     headers.set('X-Clerk-Token', state.token);
@@ -184,10 +190,6 @@
   }
 
   async function ensureToken() {
-    if (state.token) {
-      return;
-    }
-
     const authState = await auth.requireToken(publishableKey, 'need_login');
     if (!authState) {
       throw new Error('无法获取 Clerk 登录令牌。');
@@ -196,6 +198,7 @@
     state.clerk = authState.clerk;
     state.token = authState.token;
     state.userEmail = authState.userEmail || '';
+    state.sessionStatus = auth.describeSessionToken(authState.token);
     syncSessionEmail();
   }
 
