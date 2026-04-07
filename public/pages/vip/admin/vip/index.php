@@ -5,6 +5,7 @@ require_once ROOT_PATH . 'api/_vip_admin_auth.php';
 
 $publishableKey = vip_admin_get_publishable_key();
 $vipId = (int) ($_GET['id'] ?? 0);
+$entryType = in_array((string) ($_GET['entry'] ?? 'vip'), ['vip', 'update'], true) ? (string) ($_GET['entry'] ?? 'vip') : 'vip';
 $adminNavCurrent = 'vip';
 $authScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/auth.js');
 $pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/vip/script.js');
@@ -30,6 +31,7 @@ if ($vipId <= 0) {
     data-vip-admin-vip
     data-admin-view="dashboard"
     data-admin-vip-id="<?php echo $vipId; ?>"
+    data-admin-entry-type="<?php echo htmlspecialchars($entryType, ENT_QUOTES, 'UTF-8'); ?>"
     data-clerk-publishable-key="<?php echo htmlspecialchars($publishableKey, ENT_QUOTES, 'UTF-8'); ?>"
   >
     <div class="admin-loading-overlay is-hidden" data-admin-loading-overlay aria-hidden="true">
@@ -108,6 +110,15 @@ if ($vipId <= 0) {
                     <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
                   </svg>
                   <span>复制文案</span>
+                </button>
+                <button type="button" class="ghost-button editor-trash-button editor-discard-button is-hidden" data-admin-discard-trigger aria-label="丢弃更新" title="丢弃更新">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9 3h6" />
+                    <path d="M5 6h14" />
+                    <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" />
+                    <path d="M10 10v6" />
+                    <path d="M14 10v6" />
+                  </svg>
                 </button>
                 <button type="button" class="ghost-button editor-trash-button" data-admin-delete-trigger aria-label="移到回收站" title="移到回收站">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -316,6 +327,24 @@ if ($vipId <= 0) {
         <div class="admin-confirm-actions">
           <button type="button" class="ghost-button" data-admin-restore-close>取消</button>
           <button type="button" class="primary-button" data-admin-restore-confirm>确认恢复</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-confirm-modal is-hidden" data-admin-discard-modal aria-hidden="true">
+      <button
+        type="button"
+        class="admin-confirm-backdrop"
+        data-admin-discard-close
+        aria-label="关闭丢弃更新确认"
+      ></button>
+      <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="vip-discard-title">
+        <p class="state-kicker">确认操作</p>
+        <h2 id="vip-discard-title">确认丢弃这条更新？</h2>
+        <p class="admin-confirm-copy">这条待处理更新会被归档隐藏，不会影响当前已发布的 VIP 资料。</p>
+        <div class="admin-confirm-actions">
+          <button type="button" class="ghost-button" data-admin-discard-close>取消</button>
+          <button type="button" class="primary-button" data-admin-discard-confirm>确认丢弃</button>
         </div>
       </div>
     </div>

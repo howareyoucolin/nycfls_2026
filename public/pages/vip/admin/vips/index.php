@@ -106,6 +106,7 @@ $pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/vips/scrip
             <span>全部 0</span>
             <span>待审核 0</span>
             <span>已审核 0</span>
+            <span>待处理更新 0</span>
           </div>
 
           <div class="toolbar-actions">

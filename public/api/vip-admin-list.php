@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_vip_admin_auth.php';
+require_once dirname(__DIR__) . '/includes/vip_updates.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     api_error('method_not_allowed', 'Only GET is allowed.', 405);
@@ -10,13 +11,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 $claims = vip_admin_require_auth();
 
 $status = trim((string) ($_GET['status'] ?? 'unread'));
-$allowedStatuses = ['all', 'approved', 'not_approved', 'unread', 'deleted'];
+$allowedStatuses = ['all', 'approved', 'not_approved', 'unread', 'deleted', 'pending_updates'];
 if (!in_array($status, $allowedStatuses, true)) {
     $status = 'unread';
 }
 
 $search = trim((string) ($_GET['search'] ?? ''));
-$searchTerm = $search !== '' ? '%' . $search . '%' : null;
+$searchLower = mb_strtolower($search);
 $perPage = (int) ($_GET['per_page'] ?? 50);
 if ($perPage <= 0) {
     $perPage = 50;
@@ -28,54 +29,57 @@ if ($page <= 0) {
     $page = 1;
 }
 
-$whereParts = [];
-$params = [];
-
-if ($status === 'deleted') {
-    $whereParts[] = 'v.is_deleted = 1';
-} else {
-    $whereParts[] = 'v.is_deleted = 0';
-
-    if ($status === 'approved') {
-        $whereParts[] = 'v.is_approved = 1';
-    } elseif ($status === 'not_approved') {
-        $whereParts[] = 'v.is_approved = 0';
-    } elseif ($status === 'unread') {
-        $whereParts[] = 'v.is_read = 0';
+function vip_admin_matches_search(array $item, string $search, string $searchLower): bool
+{
+    if ($search === '') {
+        return true;
     }
+
+    $nickname = mb_strtolower(trim((string) ($item['nickname'] ?? '')));
+    if ($nickname !== '' && mb_strpos($nickname, $searchLower) !== false) {
+        return true;
+    }
+
+    if (!ctype_digit($search)) {
+        return false;
+    }
+
+    if ((string) ((int) ($item['id'] ?? 0)) === $search) {
+        return true;
+    }
+
+    return (string) ((int) ($item['source_vip_id'] ?? 0)) === $search;
 }
 
-if ($searchTerm !== null) {
-    if (ctype_digit($search)) {
-        $whereParts[] = '(v.nickname LIKE :search OR CAST(v.id AS CHAR) = :search_id)';
-        $params[':search_id'] = $search;
-    } else {
-        $whereParts[] = 'v.nickname LIKE :search';
-    }
-    $params[':search'] = $searchTerm;
-}
+function vip_admin_sort_items(array &$items): void
+{
+    usort($items, static function (array $left, array $right): int {
+        $leftUpdated = strtotime((string) ($left['updated_at'] ?? '')) ?: 0;
+        $rightUpdated = strtotime((string) ($right['updated_at'] ?? '')) ?: 0;
+        if ($leftUpdated !== $rightUpdated) {
+            return $rightUpdated <=> $leftUpdated;
+        }
 
-$whereSql = $whereParts !== [] ? ('WHERE ' . implode(' AND ', $whereParts)) : '';
+        $leftCreated = strtotime((string) ($left['created_at'] ?? '')) ?: 0;
+        $rightCreated = strtotime((string) ($right['created_at'] ?? '')) ?: 0;
+        if ($leftCreated !== $rightCreated) {
+            return $rightCreated <=> $leftCreated;
+        }
+
+        return ((int) ($right['id'] ?? 0)) <=> ((int) ($left['id'] ?? 0));
+    });
+}
 
 try {
     $pdo = db();
-    $countSql = 'SELECT COUNT(*) FROM vips v ' . $whereSql;
-    $countStatement = $pdo->prepare($countSql);
-    foreach ($params as $key => $value) {
-        $countStatement->bindValue($key, $value);
-    }
-    $countStatement->execute();
-    $filteredTotal = (int) $countStatement->fetchColumn();
+    $updateDiscardPredicate = vip_updates_discard_predicate($pdo, 'vu');
+    $updateDiscardSelect = vip_updates_discard_select_sql($pdo, 'vu');
 
-    $totalPages = max(1, (int) ceil($filteredTotal / $perPage));
-    if ($page > $totalPages) {
-        $page = $totalPages;
-    }
-    $offset = ($page - 1) * $perPage;
-
-    $listSql = '
-        SELECT
+    $vipItems = $pdo->query(
+        'SELECT
+            "vip" AS entry_type,
             v.id,
+            NULL AS source_vip_id,
             v.nickname,
             v.generation,
             v.gender,
@@ -92,47 +96,132 @@ try {
             v.approved_at,
             v.created_at,
             v.updated_at,
-            vm.ip_address,
-            vm.ip_lookup_location,
-            vm.browser_name,
-            vm.browser_version,
-            vm.os_name,
-            vm.os_version,
-            vm.device_type
-        FROM vips v
-        LEFT JOIN (
-            SELECT latest.*
-            FROM vip_meta latest
-            INNER JOIN (
-                SELECT vip_id, MAX(id) AS latest_id
-                FROM vip_meta
-                WHERE vip_id IS NOT NULL
-                GROUP BY vip_id
-            ) grouped ON grouped.latest_id = latest.id
-        ) vm ON vm.vip_id = v.id
-        ' . $whereSql . '
-        ORDER BY v.created_at DESC, v.id DESC
-        LIMIT :limit OFFSET :offset';
+            NULL AS applied_at
+        FROM vips v'
+    )->fetchAll();
 
-    $statement = $pdo->prepare($listSql);
-    foreach ($params as $key => $value) {
-        $statement->bindValue($key, $value);
-    }
-    $statement->bindValue(':limit', $perPage, PDO::PARAM_INT);
-    $statement->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $statement->execute();
-    $items = $statement->fetchAll();
+    $updateItems = $pdo->query(
+        'SELECT
+            "update" AS entry_type,
+            vu.id,
+            vu.source_vip_id,
+            vu.nickname,
+            vu.generation,
+            vu.gender,
+            vu.location,
+            vu.join_reason,
+            vu.intro_text,
+            vu.contact_type,
+            vu.contact_info,
+            vu.contact_qrcode_path,
+            0 AS is_deleted,
+            vu.is_read,
+            vu.is_approved,
+            ' . $updateDiscardSelect . ',
+            vu.approved_by,
+            vu.approved_at,
+            vu.created_at,
+            vu.updated_at,
+            vu.applied_at
+        FROM vip_updates vu
+        WHERE vu.applied_at IS NULL
+          AND ' . $updateDiscardPredicate
+    )->fetchAll();
 
     $counts = [
-        'all' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0')->fetchColumn(),
-        'approved' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_approved = 1')->fetchColumn(),
-        'not_approved' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_approved = 0')->fetchColumn(),
-        'unread' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 0 AND is_read = 0')->fetchColumn(),
-        'deleted' => (int) $pdo->query('SELECT COUNT(*) FROM vips WHERE is_deleted = 1')->fetchColumn(),
+        'all' => 0,
+        'approved' => 0,
+        'not_approved' => 0,
+        'unread' => 0,
+        'deleted' => 0,
+        'pending_updates' => 0,
+        'pending_updates_unread' => 0,
     ];
 
+    foreach ($vipItems as $item) {
+        $isDeleted = (int) ($item['is_deleted'] ?? 0) === 1;
+        $isApproved = (int) ($item['is_approved'] ?? 0) === 1;
+        $isRead = (int) ($item['is_read'] ?? 0) === 1;
+
+        if ($isDeleted) {
+            $counts['deleted'] += 1;
+            continue;
+        }
+
+        $counts['all'] += 1;
+        if ($isApproved) {
+            $counts['approved'] += 1;
+        } else {
+            $counts['not_approved'] += 1;
+        }
+        if (!$isRead) {
+            $counts['unread'] += 1;
+        }
+    }
+
+    foreach ($updateItems as $item) {
+        $isRead = (int) ($item['is_read'] ?? 0) === 1;
+        $counts['pending_updates'] += 1;
+        if (!$isRead) {
+            $counts['pending_updates_unread'] += 1;
+        }
+    }
+
+    $items = [];
+
+    if ($status === 'deleted') {
+        foreach ($vipItems as $item) {
+            if ((int) ($item['is_deleted'] ?? 0) !== 1) {
+                continue;
+            }
+            if (!vip_admin_matches_search($item, $search, $searchLower)) {
+                continue;
+            }
+            $items[] = $item;
+        }
+    } elseif ($status === 'pending_updates') {
+        foreach ($updateItems as $item) {
+            if (!vip_admin_matches_search($item, $search, $searchLower)) {
+                continue;
+            }
+            $items[] = $item;
+        }
+    } else {
+        foreach ($vipItems as $item) {
+            $isDeleted = (int) ($item['is_deleted'] ?? 0) === 1;
+            $isApproved = (int) ($item['is_approved'] ?? 0) === 1;
+            $isRead = (int) ($item['is_read'] ?? 0) === 1;
+
+            if ($isDeleted) {
+                continue;
+            }
+            if ($status === 'approved' && !$isApproved) {
+                continue;
+            }
+            if ($status === 'not_approved' && $isApproved) {
+                continue;
+            }
+            if ($status === 'unread' && $isRead) {
+                continue;
+            }
+            if (!vip_admin_matches_search($item, $search, $searchLower)) {
+                continue;
+            }
+            $items[] = $item;
+        }
+    }
+
+    vip_admin_sort_items($items);
+    $filteredTotal = count($items);
+    $totalPages = max(1, (int) ceil($filteredTotal / $perPage));
+    if ($page > $totalPages) {
+        $page = $totalPages;
+    }
+    $offset = ($page - 1) * $perPage;
+    $items = array_slice($items, $offset, $perPage);
+
     api_ok([
-        'items' => $items,
+        'items' => array_values($items),
         'counts' => $counts,
         'filters' => [
             'status' => $status,

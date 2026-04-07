@@ -3,17 +3,27 @@ const form = document.querySelector('[data-multistep-form]');
 if (form) {
   const isDebugMode = new URLSearchParams(window.location.search).has('debug');
   const page = document.querySelector('.page');
+  const pageMode = page?.dataset.pageMode === 'edit' ? 'edit' : 'signup';
+  const signupNavLink = document.querySelector('[data-vip-signup-link]');
   const panels = Array.from(form.querySelectorAll('[data-step-panel]'));
   const indicators = Array.from(document.querySelectorAll('[data-step-indicator]'));
   const vipNav = document.querySelector('[data-vip-nav]');
   const pageIntro = document.querySelector('[data-page-intro]');
-  const stepperShell = document.querySelector('.stepper-shell');
+  const pageTitle = document.querySelector('[data-signup-title]');
+  const pageIntroCopy = document.querySelector('[data-signup-intro]');
+  const modeBanner = document.querySelector('[data-signup-mode-banner]');
+  const editModeHero = document.querySelector('[data-edit-mode-hero]');
+  const stepperShell = document.querySelector('[data-stepper-shell]');
   const prevButton = form.querySelector('[data-step-action="prev"]');
   const nextButton = form.querySelector('[data-step-action="next"]');
   const submitButton = form.querySelector('[data-step-action="submit"]');
   const submitFeedback = form.querySelector('[data-submit-feedback]');
   const loadingScreen = document.querySelector('[data-loading-screen]');
+  const loadingTitle = document.querySelector('[data-loading-title]');
+  const loadingCopy = document.querySelector('[data-loading-copy]');
   const successScreen = document.querySelector('[data-success-screen]');
+  const successTitle = document.querySelector('[data-success-title]');
+  const successCopy = document.querySelector('[data-success-copy]');
   const confettiRoot = document.querySelector('[data-confetti]');
   const introField = form.querySelector('#intro_text');
   const introError = form.querySelector('[data-intro-error]');
@@ -38,9 +48,36 @@ if (form) {
   const qrcodePreviewImage = form.querySelector('[data-qrcode-preview-image]');
   const qrcodeClearButton = form.querySelector('[data-qrcode-clear]');
   const fingerprintField = form.querySelector('[data-device-fingerprint]');
+  const existingVipIdField = form.querySelector('[data-existing-vip-id]');
+  const existingQrcodePathField = form.querySelector('[data-existing-qrcode-path]');
   const confettiColors = ['#d94f33', '#ffd84d', '#4c8df6', '#f6b14f', '#d970d8', '#f5bccd', '#d27b2d', '#5d6ad8', '#a9d7ee'];
   const fingerprintStorageKey = 'vip-signup-device-fingerprint-v1';
+  const existingProfileStorageKey = 'vip-signup-existing-profile-v1';
+  const generationValueMap = {
+    70: '70后',
+    80: '80后',
+    90: '90后',
+    00: '00后',
+  };
+  const genderValueMap = {
+    m: '男生',
+    f: '女生',
+  };
+  const knownLocations = new Set([
+    '皇后区法拉盛',
+    '皇后区Bayside',
+    '皇后区Elmhurst',
+    '皇后区LIC',
+    '布鲁克林',
+    '曼哈顿',
+    '皇后区',
+    '纽约上州',
+    '长岛',
+    '新泽西',
+  ]);
+  const knownJoinReasons = new Set(['结婚', '恋爱', '交朋友', '搭子']);
   let currentStep = 1;
+  let profileMode = 'create';
 
   const contactCopyMap = {
     wechat: {
@@ -61,6 +98,98 @@ if (form) {
   };
   let qrcodePreviewUrl = '';
   let isSubmitting = false;
+
+  const readExistingProfileFlag = () => {
+    try {
+      return window.sessionStorage.getItem(existingProfileStorageKey) === '1';
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const writeExistingProfileFlag = (value) => {
+    try {
+      if (value) {
+        window.sessionStorage.setItem(existingProfileStorageKey, '1');
+      } else {
+        window.sessionStorage.removeItem(existingProfileStorageKey);
+      }
+    } catch (error) {
+      // Ignore storage failures.
+    }
+  };
+
+  const syncSignupNavLabel = (hasExistingProfile) => {
+    if (!signupNavLink) {
+      return;
+    }
+
+    const shouldShowEdit = pageMode === 'edit' || hasExistingProfile;
+    signupNavLink.textContent = shouldShowEdit ? '编辑我的资料' : '报名成为群成员';
+    signupNavLink.setAttribute('href', shouldShowEdit ? '/vip/edit' : '/vip/signup');
+  };
+
+  const redirectToModePage = (targetMode) => {
+    const currentParams = new URLSearchParams(window.location.search);
+    const targetPath = targetMode === 'edit' ? '/vip/edit' : '/vip/signup';
+    const query = currentParams.toString();
+    const nextUrl = query ? `${targetPath}?${query}` : targetPath;
+
+    if (`${window.location.pathname}${window.location.search}` === nextUrl) {
+      return;
+    }
+
+    window.location.href = nextUrl;
+  };
+
+  const setLoadingContent = (title, copy) => {
+    if (loadingTitle) {
+      loadingTitle.textContent = title;
+    }
+    if (loadingCopy) {
+      loadingCopy.textContent = copy;
+    }
+  };
+
+  const setSuccessContent = (title, copy) => {
+    if (successTitle) {
+      successTitle.textContent = title;
+    }
+    if (successCopy) {
+      successCopy.textContent = copy;
+    }
+  };
+
+  const syncModeUI = () => {
+    const isEditMode = profileMode === 'edit';
+    page?.classList.toggle('is-edit-mode', isEditMode);
+
+    if (pageTitle) {
+      pageTitle.textContent = isEditMode ? '编辑群成员资料' : '群成员资料填写';
+    }
+    if (pageIntroCopy) {
+      pageIntroCopy.textContent = isEditMode
+        ? '我们已经帮你带出最近一次填写的资料，你可以直接修改并重新提交。'
+        : '整个填写流程不到 1 分钟，请按步骤完成填写，每一步完成后即可进入下一步。';
+    }
+    if (modeBanner) {
+      modeBanner.hidden = !isEditMode;
+    }
+    if (editModeHero) {
+      editModeHero.hidden = !isEditMode;
+    }
+    if (submitButton) {
+      submitButton.textContent = isEditMode ? '提交更新' : '提交';
+    }
+
+    setSuccessContent(
+      isEditMode ? '更新已提交！' : '提交成功！',
+      isEditMode
+        ? '你的资料更新已经提交，我们会先保留当前展示内容，待管理员审核通过后再应用这次修改。'
+        : '感谢你的填写，你的资料已经成功提交。我们会尽快审核你的申请，并在完成后尽快与你联系。'
+    );
+    syncSignupNavLabel(isEditMode || readExistingProfileFlag());
+  };
 
   const buildFingerprintSource = () => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
@@ -133,51 +262,192 @@ if (form) {
       return existing;
     }
 
-    const nav = window.navigator || {};
-    const entropy = [
-      buildFingerprintSource(),
-      typeof window.crypto?.randomUUID === 'function' ? window.crypto.randomUUID() : '',
-      String(Date.now()),
-      String(Math.random()),
-      nav.userAgent || '',
-    ].join('|');
+    const source = buildFingerprintSource();
+    if (!source) {
+      return '';
+    }
 
-    const fingerprint = await hashFingerprint(entropy);
+    const fingerprint = await hashFingerprint(source);
     writeStoredFingerprint(fingerprint);
     return fingerprint;
   };
 
   const populateFingerprint = async () => {
     if (!fingerprintField) {
-      return;
+      return '';
     }
 
     try {
       fingerprintField.value = await generatePersistentFingerprint();
+      return fingerprintField.value;
     } catch (error) {
       fingerprintField.value = '';
+      return '';
     }
+  };
+
+  const showExistingQrcodePreview = (path) => {
+    clearQrcodePreview();
+
+    if (!path) {
+      return;
+    }
+
+    qrcodePreviewImage.src = `/${String(path).replace(/^\/+/, '')}`;
+    qrcodePreview.hidden = false;
+    qrcodeDropzone.hidden = true;
+  };
+
+  const applySelectValue = (field, knownValues, value, otherField, updateState) => {
+    const normalizedValue = String(value || '').trim();
+
+    if (normalizedValue !== '' && knownValues.has(normalizedValue)) {
+      field.value = normalizedValue;
+      otherField.value = '';
+    } else if (normalizedValue !== '') {
+      field.value = 'other';
+      otherField.value = normalizedValue;
+    } else {
+      field.value = '';
+      otherField.value = '';
+    }
+
+    updateState();
+  };
+
+  const applyExistingProfile = (profile) => {
+    const item = profile && typeof profile === 'object' ? profile : null;
+    const contactType = item && item.contact_type ? String(item.contact_type) : '';
+    const hasContact = contactType !== '';
+    const sourceVipId = item ? Number(item.source_vip_id || item.id || 0) : 0;
+
+    profileMode = item ? 'edit' : 'create';
+    existingVipIdField.value = sourceVipId > 0 ? String(sourceVipId) : '';
+
+    form.elements.nickname.value = item ? String(item.nickname || '') : '';
+    form.elements.generation.value = item ? (generationValueMap[String(item.generation || '')] || '') : '';
+
+    const targetGender = item ? (genderValueMap[String(item.gender || '')] || '') : '';
+    form.querySelectorAll('input[name="gender"]').forEach((field) => {
+      field.checked = field.value === targetGender;
+    });
+
+    applySelectValue(
+      locationField,
+      knownLocations,
+      item ? String(item.location || '') : '',
+      locationOtherField,
+      updateLocationFieldState
+    );
+
+    applySelectValue(
+      joinReasonField,
+      knownJoinReasons,
+      item ? String(item.join_reason || '') : '',
+      joinReasonOtherField,
+      updateReasonFieldState
+    );
+
+    introField.value = item ? String(item.intro_text || '') : '';
+
+    contactVisibilityFields.forEach((field) => {
+      field.checked = hasContact ? field.value === 'yes' : field.value === 'no';
+    });
+
+    contactTypeField.value = hasContact ? contactType : '';
+    contactField.value = item && contactType !== 'qrcode' ? String(item.contact_info || '') : '';
+    existingQrcodePathField.value = item && contactType === 'qrcode' ? String(item.contact_qrcode_path || '') : '';
+    contactQrcodeField.value = '';
+
+    updateContactFieldState();
+
+    if (existingQrcodePathField.value !== '' && contactType === 'qrcode') {
+      showExistingQrcodePreview(existingQrcodePathField.value);
+    } else {
+      clearQrcodePreview();
+    }
+
+    updateIntroState();
+    syncModeUI();
+  };
+
+  const loadExistingProfile = async (fingerprint) => {
+    if (!fingerprint || isDebugMode) {
+      writeExistingProfileFlag(false);
+      syncSignupNavLabel(false);
+      if (pageMode === 'edit') {
+        redirectToModePage('signup');
+        return;
+      }
+      applyExistingProfile(null);
+      return;
+    }
+
+    const response = await fetch(`/api/vip-signup-profile.php?fingerprint=${encodeURIComponent(fingerprint)}`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    const result = await response.json().catch(() => ({
+      ok: false,
+      message: '资料加载失败，请稍后再试。',
+    }));
+
+    if (!response.ok || !result.ok) {
+      throw new Error(result.message || '资料加载失败，请稍后再试。');
+    }
+
+    const item = result.data?.item || null;
+    const hasExistingProfile = Boolean(item);
+
+    writeExistingProfileFlag(hasExistingProfile);
+    syncSignupNavLabel(hasExistingProfile);
+
+    if (item && pageMode !== 'edit') {
+      redirectToModePage('edit');
+      return;
+    }
+
+    if (!item && pageMode === 'edit') {
+      redirectToModePage('signup');
+      return;
+    }
+
+    applyExistingProfile(item);
   };
 
   const getVisibleLength = (value) => value.trim().length;
 
   const updateStepUI = () => {
+    const isEditMode = profileMode === 'edit';
+
     panels.forEach((panel, index) => {
       const step = index + 1;
-      const isActive = step === currentStep;
+      const isActive = isEditMode || step === currentStep;
       panel.hidden = !isActive;
       panel.classList.toggle('is-active', isActive);
     });
 
+    if (stepperShell) {
+      stepperShell.hidden = isEditMode;
+    }
+
     indicators.forEach((indicator, index) => {
       const step = index + 1;
-      indicator.classList.toggle('is-active', step === currentStep);
-      indicator.classList.toggle('is-complete', step < currentStep);
+      indicator.classList.toggle('is-active', !isEditMode && step === currentStep);
+      indicator.classList.toggle('is-complete', !isEditMode && step < currentStep);
     });
 
-    prevButton.hidden = currentStep === 1;
-    nextButton.hidden = currentStep === panels.length;
-    submitButton.hidden = currentStep !== panels.length;
+    prevButton.hidden = isEditMode || currentStep === 1;
+    nextButton.hidden = isEditMode || currentStep === panels.length;
+    submitButton.hidden = isEditMode ? false : currentStep !== panels.length;
+  };
+
+  const validateForSubmit = () => {
+    if (profileMode === 'edit') {
+      return [1, 2, 3].every((step) => validateStep(step));
+    }
+
+    return validateStep(currentStep);
   };
 
   const updateIntroState = () => {
@@ -264,6 +534,9 @@ if (form) {
 
     if (!isQrcodeContact) {
       contactQrcodeField.value = '';
+      if (existingQrcodePathField) {
+        existingQrcodePathField.value = '';
+      }
       clearQrcodePreview();
     }
 
@@ -271,6 +544,9 @@ if (form) {
       contactTypeField.value = '';
       contactField.value = '';
       contactQrcodeField.value = '';
+      if (existingQrcodePathField) {
+        existingQrcodePathField.value = '';
+      }
       contactField.setCustomValidity('');
       contactQrcodeField.setCustomValidity('');
       contactTextLabel.textContent = '请输入你的联系方式';
@@ -431,6 +707,7 @@ if (form) {
   contactTypeField.addEventListener('change', updateContactFieldState);
   contactQrcodeField.addEventListener('change', updateQrcodePreview);
   qrcodeClearButton.addEventListener('click', () => {
+    existingQrcodePathField.value = '';
     contactQrcodeField.value = '';
     clearQrcodePreview();
   });
@@ -441,7 +718,7 @@ if (form) {
       return;
     }
 
-    if (!validateStep(currentStep)) {
+    if (!validateForSubmit()) {
       event.preventDefault();
       return;
     }
@@ -463,6 +740,7 @@ if (form) {
     }
 
     const submitUrl = form.action;
+    setLoadingContent('正在提交资料', profileMode === 'edit' ? '请稍等一下，我们正在保存你的更新并提交审核。' : '请稍等一下，我们正在保存你的信息。');
     await populateFingerprint();
     const formData = new FormData(form);
     setSubmitFeedback('');
@@ -499,6 +777,21 @@ if (form) {
   updateLocationFieldState();
   updateReasonFieldState();
   updateContactFieldState();
+  syncSignupNavLabel(readExistingProfileFlag());
   updateStepUI();
-  populateFingerprint();
+  syncModeUI();
+  setLoadingContent('正在识别资料', '请稍等一下，我们正在检查你是否已经填写过资料。');
+  loadingScreen.hidden = false;
+
+  populateFingerprint()
+    .then((fingerprint) => loadExistingProfile(fingerprint))
+    .catch((error) => {
+      setSubmitFeedback(error.message || '资料加载失败，请刷新页面重试。');
+      applyExistingProfile(null);
+    })
+    .finally(() => {
+      loadingScreen.hidden = true;
+      form.hidden = false;
+      updateStepUI();
+    });
 }

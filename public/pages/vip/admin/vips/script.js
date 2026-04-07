@@ -12,7 +12,7 @@
     sessionStatus: 'session status checking...',
     viewerRole: '',
     items: [],
-    counts: { all: 0, approved: 0, not_approved: 0, unread: 0, deleted: 0 },
+    counts: { all: 0, approved: 0, not_approved: 0, unread: 0, deleted: 0, pending_updates: 0, pending_updates_unread: 0 },
     status: 'unread',
     page: 1,
     perPage: 50,
@@ -20,6 +20,7 @@
     totalPages: 1,
     pendingRequests: 0,
     pendingUnreadId: 0,
+    pendingUnreadEntryType: 'vip',
   };
 
   const els = {
@@ -154,9 +155,12 @@
       return;
     }
 
-    const shouldShow = state.status === 'unread' && Number(state.counts.unread || 0) > 0;
+    const isVipUnreadView = state.status === 'unread' && Number(state.counts.unread || 0) > 0;
+    const isPendingUpdatesView = state.status === 'pending_updates' && Number(state.counts.pending_updates_unread || 0) > 0;
+    const shouldShow = isVipUnreadView || isPendingUpdatesView;
     els.markAllReadButton.classList.toggle('is-hidden', !shouldShow);
     els.markAllReadButton.disabled = !shouldShow;
+    els.markAllReadButton.textContent = state.status === 'pending_updates' ? '全部更新标记为已读' : '全部标记为已读';
   }
 
   function setUnreadModalOpen(isOpen) {
@@ -166,6 +170,7 @@
 
     if (!isOpen) {
       state.pendingUnreadId = 0;
+      state.pendingUnreadEntryType = 'vip';
     }
 
     els.unreadModal.classList.toggle('is-hidden', !isOpen);
@@ -173,17 +178,20 @@
     document.body.classList.toggle('admin-modal-open', isOpen);
   }
 
-  function openUnreadModal(itemId) {
-    const item = state.items.find((entry) => Number(entry.id) === Number(itemId));
+  function openUnreadModal(itemId, unreadEntryType) {
+    const item = state.items.find((entry) => Number(entry.id) === Number(itemId) && String(entry.entry_type || 'vip') === unreadEntryType);
     if (!item) {
       return;
     }
 
     state.pendingUnreadId = Number(item.id);
+    state.pendingUnreadEntryType = String(item.entry_type || 'vip');
 
     if (els.unreadCopy) {
       const label = String(item.nickname || `#${item.id}`).trim();
-      els.unreadCopy.textContent = `${label} 会重新回到未读列表。`;
+      els.unreadCopy.textContent = unreadEntryType === 'update'
+        ? `${label} 会重新标记为未读待处理更新。`
+        : `${label} 会重新回到未读列表。`;
     }
 
     setUnreadModalOpen(true);
@@ -227,6 +235,7 @@
       { value: 'not_approved', label: '未审核', count: state.counts.not_approved || 0 },
       { value: 'unread', label: '未读', count: state.counts.unread || 0 },
       { value: 'deleted', label: '回收站', count: state.counts.deleted || 0 },
+      { value: 'pending_updates', label: '待处理更新', count: state.counts.pending_updates || 0 },
     ];
 
     els.counts.innerHTML = chips.map((chip) => `
@@ -383,6 +392,9 @@
       if (Number(item.is_deleted) === 1) {
         badges.push({ className: 'is-deleted', label: '已删除' });
       } else {
+        if (String(item.entry_type || 'vip') === 'update') {
+          badges.push({ className: 'is-update', label: '待处理更新' });
+        }
         badges.push({
           className: Number(item.is_approved) === 1 ? 'is-approved' : 'is-pending',
           label: Number(item.is_approved) === 1 ? '已审核' : '未审核',
@@ -394,6 +406,9 @@
       }
       const meta = [item.generation ? `${item.generation}后` : '', item.location || ''].filter(Boolean).join(' · ');
       const itemParams = new URLSearchParams(returnQuery);
+      if (String(item.entry_type || 'vip') === 'update') {
+        itemParams.set('entry', 'update');
+      }
       if (Number(item.is_deleted) === 1) {
         itemParams.set('from', 'deleted');
       }
@@ -403,7 +418,7 @@
         <article class="signup-item">
           ${canMarkUnread ? `
             <div class="signup-item-actions">
-              <button type="button" class="ghost-button signup-item-action" data-mark-unread-id="${Number(item.id)}">设为未读</button>
+              <button type="button" class="ghost-button signup-item-action" data-mark-unread-id="${Number(item.id)}" data-mark-unread-entry="${escapeHtml(String(item.entry_type || 'vip'))}">设为未读</button>
             </div>
           ` : ''}
           <a class="signup-item-link" href="/vip/admin/vip/${Number(item.id)}?${itemParams.toString()}">
@@ -417,7 +432,7 @@
               ${badges.map((badge) => `<span class="signup-item-status ${badge.className}">${escapeHtml(badge.label)}</span>`).join('')}
             </div>
             <div class="signup-item-meta">
-              <span>#${Number(item.id)}</span>
+              <span>${String(item.entry_type || 'vip') === 'update' ? `更新 #${Number(item.id)} · 关联 VIP #${Number(item.source_vip_id || 0)}` : `#${Number(item.id)}`}</span>
               <span>${escapeHtml(formatDateTime(item.created_at))}</span>
             </div>
           </a>
@@ -427,10 +442,14 @@
     renderPagination();
   }
 
-  async function markUnread(itemId) {
+  async function markUnread(itemId, unreadEntryType) {
+    const item = state.items.find((entry) => Number(entry.id) === Number(itemId) && String(entry.entry_type || 'vip') === unreadEntryType);
     await apiFetch('/api/vip-admin-mark-unread.php', {
       method: 'POST',
-      body: JSON.stringify({ id: itemId }),
+      body: JSON.stringify({
+        id: itemId,
+        entry_type: item && item.entry_type ? item.entry_type : unreadEntryType,
+      }),
     }, '正在标记为未读...');
   }
 
@@ -612,16 +631,18 @@
   if (els.markAllReadButton) {
     els.markAllReadButton.addEventListener('click', async () => {
       els.markAllReadButton.disabled = true;
-      setListFeedback('正在将全部未读标记为已读...', false);
+      setListFeedback(state.status === 'pending_updates' ? '正在将全部待处理更新标记为已读...' : '正在将全部未读标记为已读...', false);
 
       try {
         await ensureToken();
         await apiFetch('/api/vip-admin-mark-all-read.php', {
           method: 'POST',
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            scope: state.status === 'pending_updates' ? 'pending_updates' : 'unread',
+          }),
         }, '正在批量标记为已读...');
         await fetchItems();
-        setListFeedback('全部未读已标记为已读。', false);
+        setListFeedback(state.status === 'pending_updates' ? '全部待处理更新已标记为已读。' : '全部未读已标记为已读。', false);
       } catch (error) {
         setListFeedback(error.message || '批量标记失败。', true);
       } finally {
@@ -687,7 +708,7 @@
 
   if (initialParams.has('status')) {
     const initialStatus = initialParams.get('status') || defaultStatus;
-    if (['all', 'approved', 'not_approved', 'unread', 'deleted'].includes(initialStatus)) {
+    if (['all', 'approved', 'not_approved', 'unread', 'deleted', 'pending_updates'].includes(initialStatus)) {
       state.status = initialStatus;
     }
   } else {
@@ -720,11 +741,12 @@
     }
 
     const itemId = Number(button.getAttribute('data-mark-unread-id') || '0');
+    const unreadEntryType = button.getAttribute('data-mark-unread-entry') === 'update' ? 'update' : 'vip';
     if (!Number.isFinite(itemId) || itemId <= 0) {
       return;
     }
 
-    openUnreadModal(itemId);
+    openUnreadModal(itemId, unreadEntryType);
   });
 
   els.unreadCloseButtons.forEach((button) => {
@@ -744,7 +766,7 @@
       setListFeedback('正在标记为未读...', false);
 
       try {
-        await markUnread(state.pendingUnreadId);
+        await markUnread(state.pendingUnreadId, state.pendingUnreadEntryType);
         setUnreadModalOpen(false);
         await fetchItems();
         setListFeedback('已设为未读。', false);

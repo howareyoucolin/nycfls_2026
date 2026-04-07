@@ -50,6 +50,7 @@
     form: app.querySelector('[data-admin-form]'),
     saveButton: app.querySelector('[data-admin-save]'),
     restoreButton: app.querySelector('[data-admin-restore]'),
+    discardTrigger: app.querySelector('[data-admin-discard-trigger]'),
     deleteTrigger: app.querySelector('[data-admin-delete-trigger]'),
     title: app.querySelector('[data-editor-title]'),
     feedback: app.querySelector('[data-form-feedback]'),
@@ -74,6 +75,9 @@
     restoreModal: app.querySelector('[data-admin-restore-modal]'),
     restoreCloseButtons: Array.from(app.querySelectorAll('[data-admin-restore-close]')),
     restoreConfirmButton: app.querySelector('[data-admin-restore-confirm]'),
+    discardModal: app.querySelector('[data-admin-discard-modal]'),
+    discardCloseButtons: Array.from(app.querySelectorAll('[data-admin-discard-close]')),
+    discardConfirmButton: app.querySelector('[data-admin-discard-confirm]'),
     metaCreated: app.querySelector('[data-meta-created]'),
     metaUpdated: app.querySelector('[data-meta-updated]'),
     metaApprovedBy: app.querySelector('[data-meta-approved-by]'),
@@ -87,6 +91,7 @@
   };
 
   const vipId = Number(app.dataset.adminVipId || 0);
+  const entryType = app.dataset.adminEntryType === 'update' ? 'update' : 'vip';
   const publishableKey = app.dataset.clerkPublishableKey || '';
   const loginRoute = '/vip/admin/login';
   const loginRouteWithTokenInvalid = `${loginRoute}?reason=token_invalid`;
@@ -107,9 +112,13 @@
   }
 
   function syncBackLinks(isDeleted) {
-    const fallbackHref = (Boolean(isDeleted) || cameFromDeleted) ? '/vip/admin/vips/?status=deleted' : '/vip/admin/vips/';
+    const fallbackHref = entryType === 'update'
+      ? '/vip/admin/vips/?status=pending_updates'
+      : ((Boolean(isDeleted) || cameFromDeleted) ? '/vip/admin/vips/?status=deleted' : '/vip/admin/vips/');
     const href = returnTo || fallbackHref;
-    const label = href.includes('status=deleted') ? '返回回收站' : '返回列表';
+    const label = href.includes('status=deleted')
+      ? '返回回收站'
+      : (href.includes('status=pending_updates') ? '返回待处理更新' : '返回列表');
 
     els.backLinks.forEach((link) => {
       link.href = href;
@@ -224,6 +233,16 @@
     document.body.classList.toggle('admin-modal-open', isOpen);
   }
 
+  function setDiscardModalOpen(isOpen) {
+    if (!els.discardModal) {
+      return;
+    }
+
+    els.discardModal.classList.toggle('is-hidden', !isOpen);
+    els.discardModal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    document.body.classList.toggle('admin-modal-open', isOpen);
+  }
+
   function getFormSnapshot() {
     return JSON.stringify({
       nickname: els.form.elements.nickname.value.trim(),
@@ -247,15 +266,20 @@
   }
 
   function syncDeletedActions(isDeleted) {
+    const isUpdateEntry = entryType === 'update';
     if (els.saveButton) {
       els.saveButton.classList.toggle('is-hidden', isDeleted);
     }
     if (els.restoreButton) {
-      els.restoreButton.classList.toggle('is-hidden', !isDeleted);
-      els.restoreButton.disabled = !isDeleted;
+      els.restoreButton.classList.toggle('is-hidden', isUpdateEntry || !isDeleted);
+      els.restoreButton.disabled = isUpdateEntry || !isDeleted;
     }
     if (els.deleteTrigger) {
-      els.deleteTrigger.classList.toggle('is-hidden', isDeleted);
+      els.deleteTrigger.classList.toggle('is-hidden', isUpdateEntry || isDeleted);
+    }
+    if (els.discardTrigger) {
+      els.discardTrigger.classList.toggle('is-hidden', !isUpdateEntry || isDeleted);
+      els.discardTrigger.disabled = !isUpdateEntry || isDeleted;
     }
     if (els.copyButton) {
       els.copyButton.disabled = isDeleted;
@@ -296,11 +320,11 @@
     }
 
     return [
-      `VIP #${Number(state.item.id)} ${nickname}`,
+      `${entryType === 'update' ? 'VIP 更新' : 'VIP'} #${Number(state.item.id)} ${nickname}`,
       metaParts.length > 0 ? `资料：${metaParts.join(' · ')}` : '',
       introText ? `自我介绍：${introText}` : '',
       contactLine,
-      isApproved ? `详情链接：${window.location.origin}/vip/member/${Number(state.item.id)}` : '',
+      entryType === 'vip' && isApproved ? `详情链接：${window.location.origin}/vip/member/${Number(state.item.id)}` : '',
     ].filter(Boolean).join('\n');
   }
 
@@ -348,6 +372,18 @@
       method: 'POST',
       body: JSON.stringify({ id: state.item.id }),
     }, '正在恢复 VIP...');
+  }
+
+  async function discardUpdate() {
+    if (!state.item || entryType !== 'update') {
+      return;
+    }
+
+    await ensureToken();
+    await apiFetch('/api/vip-admin-discard-update.php', {
+      method: 'POST',
+      body: JSON.stringify({ id: state.item.id }),
+    }, '正在丢弃更新...');
   }
 
   function clearQrcodePreview() {
@@ -516,8 +552,9 @@
       return;
     }
 
-    document.title = `VIP Admin - VIP #${item.id}`;
-    els.title.textContent = `编辑 #${item.id} ${item.nickname || ''}`.trim();
+    const titlePrefix = entryType === 'update' ? 'VIP 更新' : 'VIP';
+    document.title = `VIP Admin - ${titlePrefix} #${item.id}`;
+    els.title.textContent = `${entryType === 'update' ? '审核更新' : '编辑'} #${item.id} ${item.nickname || ''}`.trim();
     els.form.elements.nickname.value = item.nickname || '';
     els.form.elements.generation.value = item.generation || '80';
     els.form.elements.gender.value = item.gender || 'm';
@@ -561,6 +598,7 @@
         els.metaFingerprintMembers.innerHTML = sameFingerprintMembers.map((member) => `
           <li class="meta-related-item">
             <a class="meta-related-link" href="/vip/admin/vip/${Number(member.id)}?${new URLSearchParams({
+              entry: 'vip',
               ...(Number(member.is_deleted) === 1 ? { from: 'deleted' } : {}),
               ...(returnTo ? { return: returnTo } : {}),
             }).toString()}">
@@ -585,6 +623,8 @@
 
     if (isDeleted) {
       setFormFeedback('该资料当前位于回收站中，暂时只读。', false);
+    } else if (entryType === 'update') {
+      setFormFeedback(`这是提交中的资料更新。审核通过后，会覆盖 VIP #${Number(item.source_vip_id || 0)} 的当前展示内容。`, false);
     } else {
       setFormFeedback('', false);
     }
@@ -648,7 +688,11 @@
 
   async function fetchItem() {
     setFormFeedback('正在加载报名资料...', false);
-    const data = await apiFetch(`/api/vip-admin-item.php?id=${encodeURIComponent(String(vipId))}`, { method: 'GET' }, '正在获取报名资料...');
+    const query = new URLSearchParams({
+      id: String(vipId),
+      entry: entryType,
+    });
+    const data = await apiFetch(`/api/vip-admin-item.php?${query.toString()}`, { method: 'GET' }, '正在获取报名资料...');
     state.item = data && data.data ? data.data.item : null;
     state.sameFingerprintMembers = Array.isArray(data && data.data ? data.data.same_fingerprint_members : null) ? data.data.same_fingerprint_members : [];
     state.viewerRole = String(data && data.data && data.data.viewer ? data.data.viewer.role || '' : '');
@@ -677,7 +721,9 @@
       if (error && error.status === 404) {
         auth.debugLog('vip refreshDashboard missing item');
         els.forbiddenTitle.textContent = '未找到该报名资料';
-        els.forbiddenMessage.textContent = cameFromDeleted ? '请返回回收站后重新选择。' : '请返回 Vips 列表后重新选择。';
+        els.forbiddenMessage.textContent = cameFromDeleted
+          ? '请返回回收站后重新选择。'
+          : (entryType === 'update' ? '请返回待处理更新列表后重新选择。' : '请返回 Vips 列表后重新选择。');
         syncBackLinks(false);
         setView('forbidden');
         return;
@@ -762,6 +808,10 @@
         setRestoreModalOpen(false);
         return;
       }
+      if (els.discardModal && !els.discardModal.classList.contains('is-hidden')) {
+        setDiscardModalOpen(false);
+        return;
+      }
       closeDrawer();
     }
   });
@@ -838,6 +888,12 @@
     });
   }
 
+  if (els.discardTrigger) {
+    els.discardTrigger.addEventListener('click', () => {
+      setDiscardModalOpen(true);
+    });
+  }
+
   els.restoreCloseButtons.forEach((button) => {
     button.addEventListener('click', () => {
       setRestoreModalOpen(false);
@@ -857,6 +913,29 @@
         setFormFeedback(error.message || '恢复失败。', true);
       } finally {
         els.restoreConfirmButton.disabled = false;
+      }
+    });
+  }
+
+  els.discardCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setDiscardModalOpen(false);
+    });
+  });
+
+  if (els.discardConfirmButton) {
+    els.discardConfirmButton.addEventListener('click', async () => {
+      els.discardConfirmButton.disabled = true;
+      setFormFeedback('正在丢弃更新...', false);
+
+      try {
+        await discardUpdate();
+        window.location.href = '/vip/admin/vips/?status=pending_updates';
+      } catch (error) {
+        setDiscardModalOpen(false);
+        setFormFeedback(error.message || '丢弃更新失败。', true);
+      } finally {
+        els.discardConfirmButton.disabled = false;
       }
     });
   }
@@ -942,6 +1021,7 @@
 
     const payload = {
       id: state.item.id,
+      entry_type: entryType,
       nickname: els.form.elements.nickname.value.trim(),
       generation: els.form.elements.generation.value,
       gender: els.form.elements.gender.value,
@@ -959,10 +1039,19 @@
 
     try {
       await ensureToken();
-      await apiFetch('/api/vip-admin-update.php', {
+      const result = await apiFetch('/api/vip-admin-update.php', {
         method: 'POST',
         body: JSON.stringify(payload),
       }, '正在保存修改...');
+
+      if (entryType === 'update' && Boolean(result && result.data && result.data.applied)) {
+        const sourceVipId = Number(result && result.data ? result.data.source_vip_id || 0 : 0);
+        const targetUrl = sourceVipId > 0
+          ? `/vip/admin/vip/${sourceVipId}`
+          : '/vip/admin/vips/?status=pending_updates';
+        window.location.href = targetUrl;
+        return;
+      }
 
       state.initialSnapshot = getFormSnapshot();
       syncDirtyState();

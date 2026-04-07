@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+$pageMode = isset($pageMode) && $pageMode === 'edit' ? 'edit' : 'signup';
 $signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
 ?>
 <!DOCTYPE html>
@@ -14,15 +15,29 @@ $signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
   <link rel="stylesheet" href="/pages/vip/signup/style.css">
 </head>
 <body>
-  <main class="page">
+  <main class="page" data-page-mode="<?php echo htmlspecialchars($pageMode, ENT_QUOTES, 'UTF-8'); ?>">
     <?php require dirname(__DIR__) . '/_templates/nav.php'; ?>
     <div class="page-intro" data-page-intro>
       <p class="eyebrow">VIP SIGNUP</p>
-      <h1>群成员资料填写</h1>
-      <p class="intro">整个填写流程不到 1 分钟，请按步骤完成填写，每一步完成后即可进入下一步。</p>
+      <div class="edit-mode-hero" data-edit-mode-hero hidden>
+        <div class="edit-mode-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 20h4l10-10-4-4L4 16v4Z"></path>
+            <path d="m12 6 4 4"></path>
+            <path d="M14 4 16 2 22 8l-2 2"></path>
+          </svg>
+        </div>
+        <div class="edit-mode-copy">
+          <p class="edit-mode-kicker">Edit Mode</p>
+          <p class="edit-mode-title">资料更新页面</p>
+        </div>
+      </div>
+      <h1 data-signup-title>群成员资料填写</h1>
+      <p class="intro" data-signup-intro>整个填写流程不到 1 分钟，请按步骤完成填写，每一步完成后即可进入下一步。</p>
+      <p class="mode-banner" data-signup-mode-banner hidden>已识别到你之前提交过资料，这里显示的是最近一次填写内容。你可以继续修改，提交后仍需管理员审核才会生效。</p>
     </div>
 
-    <div class="stepper-shell">
+    <div class="stepper-shell" data-stepper-shell hidden>
       <ol class="stepper" aria-label="填写步骤">
         <li class="step-item is-active" data-step-indicator="1">
           <span class="step-number">1</span>
@@ -38,8 +53,10 @@ $signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
       </ol>
     </div>
 
-    <form method="post" action="/actions/vip-signup-submit.php" enctype="multipart/form-data" novalidate data-multistep-form>
+    <form method="post" action="/actions/vip-signup-submit.php" enctype="multipart/form-data" novalidate data-multistep-form hidden>
       <input type="hidden" name="fingerprint" value="" data-device-fingerprint>
+      <input type="hidden" name="existing_vip_id" value="" data-existing-vip-id>
+      <input type="hidden" name="contact_qrcode_existing_path" value="" data-existing-qrcode-path>
       <section class="section step-panel is-active" data-step-panel="1">
         <p class="section-title">步骤 1 / 基本信息</p>
         <div class="fields">
@@ -202,8 +219,8 @@ $signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
     <section class="loading-screen" data-loading-screen hidden>
       <div class="loading-card">
         <div class="loading-spinner" aria-hidden="true"></div>
-        <p class="loading-title">正在提交资料</p>
-        <p class="loading-copy">请稍等一下，我们正在保存你的信息。</p>
+        <p class="loading-title" data-loading-title>正在提交资料</p>
+        <p class="loading-copy" data-loading-copy>请稍等一下，我们正在保存你的信息。</p>
       </div>
     </section>
 
@@ -211,8 +228,8 @@ $signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
       <div class="success-confetti" data-confetti aria-hidden="true"></div>
       <div class="success-card">
         <div class="success-check">✓</div>
-        <h2>提交成功！</h2>
-        <p class="success-copy">感谢你的填写，你的资料已经成功提交。我们会尽快审核你的申请，并在完成后尽快与你联系。</p>
+        <h2 data-success-title>提交成功！</h2>
+        <p class="success-copy" data-success-copy>感谢你的填写，你的资料已经成功提交。我们会尽快审核你的申请，并在完成后尽快与你联系。</p>
         <a class="success-link" href="/vip">查看全部群成员</a>
       </div>
     </section>

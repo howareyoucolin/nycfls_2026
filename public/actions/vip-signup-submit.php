@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require dirname(__DIR__) . '/includes/vip_updates.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -107,8 +108,16 @@ function send_telegram_signup_notification(array $signup): void
     }
 
     $vipId = (int) ($signup['id'] ?? 0);
+    $existingVipId = (int) ($signup['existing_vip_id'] ?? 0);
+    $entryType = (string) ($signup['entry_type'] ?? 'vip');
     $baseUrl = app_base_url();
-    $adminUrl = $vipId > 0 && $baseUrl !== '' ? $baseUrl . '/vip/admin/vip/' . $vipId : '';
+    $adminUrl = '';
+    if ($vipId > 0 && $baseUrl !== '') {
+        $adminUrl = $baseUrl . '/vip/admin/vip/' . $vipId;
+        if ($entryType === 'update') {
+            $adminUrl .= '?entry=update';
+        }
+    }
     $contactLine = '不公开';
 
     if (($signup['contact_type'] ?? null) === 'qrcode') {
@@ -118,8 +127,11 @@ function send_telegram_signup_notification(array $signup): void
     }
 
     $messageLines = [
-        'New VIP signup submitted',
+        $entryType === 'update'
+            ? 'VIP profile update submitted'
+            : ($existingVipId > 0 ? 'Unapproved VIP profile updated' : 'New VIP signup submitted'),
         'ID: #' . $vipId,
+        $entryType === 'update' && $existingVipId > 0 ? '基于资料: #' . $existingVipId : null,
         '昵称: ' . (string) ($signup['nickname'] ?? ''),
         '年代: ' . (string) ($signup['generation'] ?? ''),
         '性别: ' . (string) ($signup['gender'] ?? ''),
@@ -127,6 +139,8 @@ function send_telegram_signup_notification(array $signup): void
         '原因: ' . (string) ($signup['join_reason'] ?? ''),
         '联系: ' . $contactLine,
     ];
+
+    $messageLines = array_values(array_filter($messageLines, static fn ($line): bool => is_string($line) && $line !== ''));
 
     if ($adminUrl !== '') {
         $messageLines[] = 'Admin: ' . $adminUrl;
@@ -483,7 +497,7 @@ function resolve_ip_lookup_location(array $ipCandidates): array
     return collect_edge_location_hint();
 }
 
-function collect_vip_meta(?int $vipId = null): array
+function collect_vip_meta(?int $vipId = null, ?int $vipUpdateId = null): array
 {
     $userAgent = trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
     [$browserName, $browserVersion] = detect_browser($userAgent);
@@ -519,6 +533,7 @@ function collect_vip_meta(?int $vipId = null): array
 
     return [
         'vip_id' => $vipId,
+        'vip_update_id' => $vipUpdateId,
         'ip_address' => $ipAddress ?? '',
         'forwarded_for' => trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')),
         'user_agent' => $userAgent,
@@ -548,6 +563,7 @@ function store_vip_meta(PDO $pdo, array $meta): void
     $statement = $pdo->prepare(
         'INSERT INTO vip_meta (
             vip_id,
+            vip_update_id,
             ip_address,
             forwarded_for,
             user_agent,
@@ -562,6 +578,7 @@ function store_vip_meta(PDO $pdo, array $meta): void
             extra_payload
         ) VALUES (
             :vip_id,
+            :vip_update_id,
             :ip_address,
             :forwarded_for,
             :user_agent,
@@ -579,6 +596,7 @@ function store_vip_meta(PDO $pdo, array $meta): void
 
     $statement->execute([
         ':vip_id' => $meta['vip_id'],
+        ':vip_update_id' => $meta['vip_update_id'],
         ':ip_address' => $meta['ip_address'] !== '' ? $meta['ip_address'] : null,
         ':forwarded_for' => $meta['forwarded_for'] !== '' ? $meta['forwarded_for'] : null,
         ':user_agent' => $meta['user_agent'] !== '' ? $meta['user_agent'] : null,
@@ -624,6 +642,9 @@ $introText = post_string('intro_text');
 $contactVisibility = post_string('contact_visibility');
 $contactType = post_string('contact_type');
 $contactInfo = post_string('contact_info');
+$existingVipId = (int) post_string('existing_vip_id');
+$existingContactQrcodePathRaw = trim((string) ($_POST['contact_qrcode_existing_path'] ?? ''));
+$existingContactQrcodePath = $existingContactQrcodePathRaw !== '' ? ltrim($existingContactQrcodePathRaw, '/') : null;
 
 $location = $locationInput === 'other' ? $locationOther : $locationInput;
 $joinReason = $joinReasonInput === 'other' ? $joinReasonOther : ($joinReasonMap[$joinReasonInput] ?? $joinReasonInput);
@@ -675,7 +696,7 @@ if (!$isDebugMode) {
         respond(422, ['ok' => false, 'message' => '请填写联系方式内容。']);
     }
 
-    if ($normalizedContactType === 'qrcode' && empty($_FILES['contact_qrcode']['name'])) {
+    if ($normalizedContactType === 'qrcode' && empty($_FILES['contact_qrcode']['name']) && $existingContactQrcodePath === null) {
         respond(422, ['ok' => false, 'message' => '请上传二维码图片。']);
     }
 }
@@ -763,6 +784,9 @@ if ($normalizedContactType === 'qrcode' && !empty($_FILES['contact_qrcode']['nam
 
     $contactQrcodePath = 'uploads/vip-qrcodes/' . $filename;
     $contactInfo = '';
+} elseif ($normalizedContactType === 'qrcode') {
+    $contactQrcodePath = $existingContactQrcodePath;
+    $contactInfo = '';
 }
 
 if ($normalizedContactType === null) {
@@ -771,52 +795,239 @@ if ($normalizedContactType === null) {
 
 try {
     $pdo = db();
-    $statement = $pdo->prepare(
-        'INSERT INTO vips (
-            nickname,
-            generation,
-            gender,
-            location,
-            join_reason,
-            intro_text,
-            contact_type,
-            contact_info,
-            contact_qrcode_path,
-            is_approved,
-            approved_by,
-            approved_at
-        ) VALUES (
-            :nickname,
-            :generation,
-            :gender,
-            :location,
-            :join_reason,
-            :intro_text,
-            :contact_type,
-            :contact_info,
-            :contact_qrcode_path,
-            0,
-            NULL,
-            NULL
-        )'
-    );
+    $pdo->beginTransaction();
 
-    $statement->execute([
-        ':nickname' => $nickname,
-        ':generation' => $generation,
-        ':gender' => $gender,
-        ':location' => $location,
-        ':join_reason' => $joinReason,
-        ':intro_text' => $introText,
-        ':contact_type' => $normalizedContactType,
-        ':contact_info' => $contactInfo,
-        ':contact_qrcode_path' => $contactQrcodePath,
-    ]);
+    $entryType = 'vip';
+    $recordId = 0;
+    $vipId = 0;
+    $fingerprintMeta = collect_vip_meta();
+    $fingerprint = trim((string) ($fingerprintMeta['fingerprint'] ?? ''));
 
-    $vipId = (int) $pdo->lastInsertId();
-    store_vip_meta($pdo, collect_vip_meta($vipId));
+    if ($existingVipId > 0) {
+        $existingVipStatement = $pdo->prepare('SELECT id, is_approved, is_read, approved_by, approved_at FROM vips WHERE id = :id AND is_deleted = 0 LIMIT 1');
+        $existingVipStatement->execute([
+            ':id' => $existingVipId,
+        ]);
+        $existingVip = $existingVipStatement->fetch();
+
+        if (!is_array($existingVip)) {
+            $pdo->rollBack();
+            respond(404, ['ok' => false, 'message' => '当前资料不存在，无法提交更新。']);
+        }
+
+        $vipId = $existingVipId;
+        $existingVipApproved = (int) ($existingVip['is_approved'] ?? 0) === 1;
+
+        if (!$existingVipApproved) {
+            $updateVipStatement = $pdo->prepare(
+                'UPDATE vips
+                SET
+                    nickname = :nickname,
+                    generation = :generation,
+                    gender = :gender,
+                    location = :location,
+                    join_reason = :join_reason,
+                    intro_text = :intro_text,
+                    contact_type = :contact_type,
+                    contact_info = :contact_info,
+                    contact_qrcode_path = :contact_qrcode_path,
+                    is_read = 0,
+                    is_approved = :is_approved,
+                    approved_by = :approved_by,
+                    approved_at = :approved_at
+                WHERE id = :id'
+            );
+            $updateVipStatement->execute([
+                ':id' => $existingVipId,
+                ':nickname' => $nickname,
+                ':generation' => $generation,
+                ':gender' => $gender,
+                ':location' => $location,
+                ':join_reason' => $joinReason,
+                ':intro_text' => $introText,
+                ':contact_type' => $normalizedContactType,
+                ':contact_info' => $contactInfo,
+                ':contact_qrcode_path' => $contactQrcodePath,
+                ':is_approved' => 0,
+                ':approved_by' => $existingVip['approved_by'] ?? null,
+                ':approved_at' => $existingVip['approved_at'] ?? null,
+            ]);
+            $recordId = $existingVipId;
+            store_vip_meta($pdo, collect_vip_meta($existingVipId, null));
+        } else {
+            $entryType = 'update';
+            $pendingUpdateId = 0;
+
+            if ($fingerprint !== '') {
+                $updateDiscardPredicate = vip_updates_discard_predicate($pdo, 'vu');
+                $pendingUpdateStatement = $pdo->prepare(
+                    'SELECT vu.id
+                    FROM vip_updates vu
+                    INNER JOIN (
+                        SELECT latest.vip_update_id, latest.fingerprint
+                        FROM vip_meta latest
+                        INNER JOIN (
+                            SELECT vip_update_id, MAX(id) AS latest_id
+                            FROM vip_meta
+                            WHERE vip_update_id IS NOT NULL
+                            GROUP BY vip_update_id
+                        ) grouped ON grouped.latest_id = latest.id
+                        WHERE latest.vip_update_id IS NOT NULL
+                    ) vm ON vm.vip_update_id = vu.id
+                    WHERE vu.source_vip_id = :source_vip_id
+                      AND vu.applied_at IS NULL
+                      AND ' . $updateDiscardPredicate . '
+                      AND vm.fingerprint = :fingerprint
+                    ORDER BY vu.updated_at DESC, vu.id DESC
+                    LIMIT 1'
+                );
+                $pendingUpdateStatement->execute([
+                    ':source_vip_id' => $existingVipId,
+                    ':fingerprint' => $fingerprint,
+                ]);
+                $pendingUpdateId = (int) $pendingUpdateStatement->fetchColumn();
+            }
+
+            if ($pendingUpdateId > 0) {
+                $updateStatement = $pdo->prepare(
+                    'UPDATE vip_updates
+                    SET
+                        nickname = :nickname,
+                        generation = :generation,
+                        gender = :gender,
+                        location = :location,
+                        join_reason = :join_reason,
+                        intro_text = :intro_text,
+                        contact_type = :contact_type,
+                        contact_info = :contact_info,
+                        contact_qrcode_path = :contact_qrcode_path,
+                        is_read = 0,
+                        is_approved = 0,
+                        approved_by = NULL,
+                        approved_at = NULL,
+                        applied_at = NULL
+                    WHERE id = :id'
+                );
+                $updateStatement->execute([
+                    ':id' => $pendingUpdateId,
+                    ':nickname' => $nickname,
+                    ':generation' => $generation,
+                    ':gender' => $gender,
+                    ':location' => $location,
+                    ':join_reason' => $joinReason,
+                    ':intro_text' => $introText,
+                    ':contact_type' => $normalizedContactType,
+                    ':contact_info' => $contactInfo,
+                    ':contact_qrcode_path' => $contactQrcodePath,
+                ]);
+                $recordId = $pendingUpdateId;
+            } else {
+                $insertUpdateStatement = $pdo->prepare(
+                    'INSERT INTO vip_updates (
+                        source_vip_id,
+                        nickname,
+                        generation,
+                        gender,
+                        location,
+                        join_reason,
+                        intro_text,
+                        contact_type,
+                        contact_info,
+                        contact_qrcode_path,
+                        is_read,
+                        is_approved,
+                        approved_by,
+                        approved_at,
+                        applied_at
+                    ) VALUES (
+                        :source_vip_id,
+                        :nickname,
+                        :generation,
+                        :gender,
+                        :location,
+                        :join_reason,
+                        :intro_text,
+                        :contact_type,
+                        :contact_info,
+                        :contact_qrcode_path,
+                        0,
+                        0,
+                        NULL,
+                        NULL,
+                        NULL
+                    )'
+                );
+                $insertUpdateStatement->execute([
+                    ':source_vip_id' => $existingVipId,
+                    ':nickname' => $nickname,
+                    ':generation' => $generation,
+                    ':gender' => $gender,
+                    ':location' => $location,
+                    ':join_reason' => $joinReason,
+                    ':intro_text' => $introText,
+                    ':contact_type' => $normalizedContactType,
+                    ':contact_info' => $contactInfo,
+                    ':contact_qrcode_path' => $contactQrcodePath,
+                ]);
+                $recordId = (int) $pdo->lastInsertId();
+            }
+
+            store_vip_meta($pdo, collect_vip_meta(null, $recordId));
+        }
+    } else {
+        $statement = $pdo->prepare(
+            'INSERT INTO vips (
+                nickname,
+                generation,
+                gender,
+                location,
+                join_reason,
+                intro_text,
+                contact_type,
+                contact_info,
+                contact_qrcode_path,
+                is_approved,
+                approved_by,
+                approved_at
+            ) VALUES (
+                :nickname,
+                :generation,
+                :gender,
+                :location,
+                :join_reason,
+                :intro_text,
+                :contact_type,
+                :contact_info,
+                :contact_qrcode_path,
+                0,
+                NULL,
+                NULL
+            )'
+        );
+
+        $statement->execute([
+            ':nickname' => $nickname,
+            ':generation' => $generation,
+            ':gender' => $gender,
+            ':location' => $location,
+            ':join_reason' => $joinReason,
+            ':intro_text' => $introText,
+            ':contact_type' => $normalizedContactType,
+            ':contact_info' => $contactInfo,
+            ':contact_qrcode_path' => $contactQrcodePath,
+        ]);
+
+        $vipId = (int) $pdo->lastInsertId();
+        $recordId = $vipId;
+        store_vip_meta($pdo, collect_vip_meta($vipId, null));
+    }
+
+    $pdo->commit();
+
     send_telegram_signup_notification([
-        'id' => $vipId,
+        'id' => $recordId,
+        'existing_vip_id' => $existingVipId,
+        'entry_type' => $entryType,
         'nickname' => $nickname,
         'generation' => $generation,
         'gender' => $gender,
@@ -826,6 +1037,9 @@ try {
         'contact_info' => $contactInfo,
     ]);
 } catch (Throwable $exception) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     respond(500, [
         'ok' => false,
         'message' => '资料保存失败，请稍后再试。',
@@ -834,5 +1048,5 @@ try {
 
 respond(200, [
     'ok' => true,
-    'message' => '提交成功。',
+    'message' => $existingVipId > 0 ? '更新已提交。' : '提交成功。',
 ]);
