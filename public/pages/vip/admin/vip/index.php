@@ -102,6 +102,13 @@ if ($vipId <= 0) {
                   <input type="checkbox" name="is_approved" data-admin-approve-toggle>
                   <span>审核通过</span>
                 </label>
+                <button type="button" class="ghost-button editor-copy-button" data-admin-copy aria-label="复制会员文案" title="复制会员文案">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                    <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>复制文案</span>
+                </button>
                 <button type="button" class="ghost-button editor-trash-button" data-admin-delete-trigger aria-label="移到回收站" title="移到回收站">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M9 3h6" />
@@ -256,6 +263,23 @@ if ($vipId <= 0) {
         <p class="admin-confirm-copy">这份 VIP 资料已经成功更新。</p>
         <div class="admin-confirm-actions">
           <button type="button" class="primary-button" data-admin-saved-close>知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-confirm-modal is-hidden" data-admin-copy-modal aria-hidden="true">
+      <button
+        type="button"
+        class="admin-confirm-backdrop"
+        data-admin-copy-close
+        aria-label="关闭复制提示"
+      ></button>
+      <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="vip-copy-title">
+        <p class="state-kicker">复制结果</p>
+        <h2 id="vip-copy-title" data-admin-copy-title>已复制</h2>
+        <p class="admin-confirm-copy" data-admin-copy-text>会员资料文案已复制。</p>
+        <div class="admin-confirm-actions">
+          <button type="button" class="primary-button" data-admin-copy-close>知道了</button>
         </div>
       </div>
     </div>

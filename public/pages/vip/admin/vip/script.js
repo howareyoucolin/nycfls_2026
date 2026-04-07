@@ -17,6 +17,18 @@
     pendingRequests: 0,
   };
 
+  const genderLabels = {
+    m: '男生',
+    f: '女生',
+  };
+
+  const contactTypeLabels = {
+    wechat: '微信',
+    phone: '电话',
+    email: '邮箱',
+    qrcode: '二维码',
+  };
+
   const els = {
     drawer: app.querySelector('[data-admin-drawer]'),
     drawerToggle: app.querySelector('[data-admin-drawer-toggle]'),
@@ -42,6 +54,7 @@
     title: app.querySelector('[data-editor-title]'),
     feedback: app.querySelector('[data-form-feedback]'),
     approveToggle: app.querySelector('[data-admin-approve-toggle]'),
+    copyButton: app.querySelector('[data-admin-copy]'),
     contactInfoField: app.querySelector('[data-contact-info-field]'),
     qrcodePathField: app.querySelector('[data-qrcode-path-field]'),
     qrcodeFileInput: app.querySelector('[data-admin-qrcode-file]'),
@@ -51,6 +64,10 @@
     qrcodeReplaceButton: app.querySelector('[data-admin-qrcode-replace]'),
     savedModal: app.querySelector('[data-admin-saved-modal]'),
     savedCloseButtons: Array.from(app.querySelectorAll('[data-admin-saved-close]')),
+    copyModal: app.querySelector('[data-admin-copy-modal]'),
+    copyModalTitle: app.querySelector('[data-admin-copy-title]'),
+    copyModalText: app.querySelector('[data-admin-copy-text]'),
+    copyCloseButtons: Array.from(app.querySelectorAll('[data-admin-copy-close]')),
     deleteModal: app.querySelector('[data-admin-delete-modal]'),
     deleteCloseButtons: Array.from(app.querySelectorAll('[data-admin-delete-close]')),
     deleteConfirmButton: app.querySelector('[data-admin-delete-confirm]'),
@@ -167,6 +184,26 @@
     document.body.classList.toggle('admin-modal-open', isOpen);
   }
 
+  function setCopyModalOpen(isOpen, title, text) {
+    if (!els.copyModal) {
+      return;
+    }
+
+    els.copyModal.classList.toggle('is-hidden', !isOpen);
+    els.copyModal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+
+    if (isOpen) {
+      if (els.copyModalTitle) {
+        els.copyModalTitle.textContent = title || '已复制';
+      }
+      if (els.copyModalText) {
+        els.copyModalText.textContent = text || '会员资料文案已复制。';
+      }
+    }
+
+    document.body.classList.toggle('admin-modal-open', isOpen);
+  }
+
   function setDeleteModalOpen(isOpen) {
     if (!els.deleteModal) {
       return;
@@ -219,6 +256,73 @@
     }
     if (els.deleteTrigger) {
       els.deleteTrigger.classList.toggle('is-hidden', isDeleted);
+    }
+    if (els.copyButton) {
+      els.copyButton.disabled = isDeleted;
+    }
+  }
+
+  function buildCopyText() {
+    if (!state.item) {
+      return '';
+    }
+
+    const nickname = els.form.elements.nickname.value.trim();
+    const generation = els.form.elements.generation.value;
+    const gender = els.form.elements.gender.value;
+    const location = els.form.elements.location.value.trim();
+    const joinReason = els.form.elements.join_reason.value.trim();
+    const introText = els.form.elements.intro_text.value.trim();
+    const contactType = els.form.elements.contact_type.value;
+    const contactInfo = els.form.elements.contact_info.value.trim();
+    const isApproved = Boolean(els.approveToggle.checked);
+    const metaParts = [
+      generation ? `${generation}后` : '',
+      genderLabels[gender] || gender,
+      location,
+      joinReason,
+    ].filter(Boolean);
+    let contactLine = '';
+
+    if (contactType) {
+      const contactTypeLabel = contactTypeLabels[contactType] || contactType;
+      if (contactType === 'qrcode') {
+        contactLine = '联系方式：二维码，请联系管理员查看';
+      } else if (contactInfo) {
+        contactLine = `联系方式：${contactTypeLabel}：${contactInfo}`;
+      } else {
+        contactLine = `联系方式：${contactTypeLabel}`;
+      }
+    }
+
+    return [
+      `VIP #${Number(state.item.id)} ${nickname}`,
+      metaParts.length > 0 ? `资料：${metaParts.join(' · ')}` : '',
+      introText ? `自我介绍：${introText}` : '',
+      contactLine,
+      isApproved ? `详情链接：${window.location.origin}/vip/member/${Number(state.item.id)}` : '',
+    ].filter(Boolean).join('\n');
+  }
+
+  async function copyTextValue(value) {
+    if (!value) {
+      return false;
+    }
+
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (error) {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      textarea.remove();
+      return copied;
     }
   }
 
@@ -646,6 +750,10 @@
         setSavedModalOpen(false);
         return;
       }
+      if (els.copyModal && !els.copyModal.classList.contains('is-hidden')) {
+        setCopyModalOpen(false);
+        return;
+      }
       if (els.deleteModal && !els.deleteModal.classList.contains('is-hidden')) {
         setDeleteModalOpen(false);
         return;
@@ -675,6 +783,25 @@
       setSavedModalOpen(false);
     });
   });
+
+  els.copyCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setCopyModalOpen(false);
+    });
+  });
+
+  if (els.copyButton) {
+    els.copyButton.addEventListener('click', async () => {
+      const value = buildCopyText();
+      const copied = await copyTextValue(value);
+
+      setCopyModalOpen(
+        true,
+        copied ? '资料已复制' : '复制失败',
+        copied ? '会员资料文案已复制，可以直接粘贴到微信。' : '会员资料文案复制失败，请再试一次。'
+      );
+    });
+  }
 
   if (els.deleteTrigger) {
     els.deleteTrigger.addEventListener('click', () => {
