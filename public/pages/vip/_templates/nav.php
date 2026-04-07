@@ -5,7 +5,6 @@ $currentVipPath = parse_url($_SERVER['REQUEST_URI'] ?? '/vip', PHP_URL_PATH) ?: 
 $isEditPath = str_starts_with($currentVipPath, '/vip/edit');
 $signupNavHref = $isEditPath ? '/vip/edit' : '/vip/signup';
 $signupNavLabel = $isEditPath ? '编辑我的资料' : '报名成为群成员';
-$navScriptVersion = (string) @filemtime(__DIR__ . '/nav.js');
 ?>
 <nav class="vip-nav" aria-label="VIP 导航" data-vip-nav>
   <a class="vip-nav-link <?php echo $currentVipPath === '/vip' || $currentVipPath === '/vip/' ? 'is-active' : ''; ?>" href="/vip">
@@ -15,4 +14,4 @@ $navScriptVersion = (string) @filemtime(__DIR__ . '/nav.js');
     <?php echo htmlspecialchars($signupNavLabel, ENT_QUOTES, 'UTF-8'); ?>
   </a>
 </nav>
-<script src="/pages/vip/_templates/nav.js?v=<?php echo urlencode($navScriptVersion); ?>" defer></script>
+<script src="/pages/vip/_templates/nav.js?v=2" defer></script>

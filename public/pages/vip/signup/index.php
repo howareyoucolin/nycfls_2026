@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 $pageMode = isset($pageMode) && $pageMode === 'edit' ? 'edit' : 'signup';
-$signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -10,9 +9,9 @@ $signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>群成员资料填写</title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <link rel="stylesheet" href="/pages/vip/_templates/nav.css">
-  <link rel="stylesheet" href="/pages/vip/signup/style.css">
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/_templates/nav.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/signup/style.css?v=2">
 </head>
 <body>
   <main class="page" data-page-mode="<?php echo htmlspecialchars($pageMode, ENT_QUOTES, 'UTF-8'); ?>">
@@ -234,6 +233,6 @@ $signupScriptVersion = (string) @filemtime(__DIR__ . '/script.js');
       </div>
     </section>
   </main>
-  <script src="/pages/vip/signup/script.js?v=<?php echo urlencode($signupScriptVersion); ?>" defer></script>
+  <script src="/pages/vip/signup/script.js?v=2" defer></script>
 </body>
 </html>

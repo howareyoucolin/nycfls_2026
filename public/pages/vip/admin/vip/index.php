@@ -7,8 +7,6 @@ $publishableKey = vip_admin_get_publishable_key();
 $vipId = (int) ($_GET['id'] ?? 0);
 $entryType = in_array((string) ($_GET['entry'] ?? 'vip'), ['vip', 'update'], true) ? (string) ($_GET['entry'] ?? 'vip') : 'vip';
 $adminNavCurrent = 'vip';
-$authScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/auth.js');
-$pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/vip/script.js');
 
 if ($vipId <= 0) {
     http_response_code(404);
@@ -22,8 +20,8 @@ if ($vipId <= 0) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VIP Admin - VIP #<?php echo $vipId; ?></title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <link rel="stylesheet" href="/pages/vip/admin/style.css">
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/admin/style.css?v=2">
 </head>
 <body>
   <main
@@ -349,7 +347,7 @@ if ($vipId <= 0) {
       </div>
     </div>
   </main>
-  <script src="/pages/vip/admin/auth.js?v=<?php echo urlencode($authScriptVersion); ?>" defer></script>
-  <script src="/pages/vip/admin/vip/script.js?v=<?php echo urlencode($pageScriptVersion); ?>" defer></script>
+  <script src="/pages/vip/admin/auth.js?v=2" defer></script>
+  <script src="/pages/vip/admin/vip/script.js?v=2" defer></script>
 </body>
 </html>

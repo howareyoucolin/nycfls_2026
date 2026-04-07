@@ -61,9 +61,9 @@ try {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?php echo $vip ? htmlspecialchars((string) $vip['nickname'], ENT_QUOTES, 'UTF-8') . ' · 群成员详情' : '群成员详情'; ?></title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <link rel="stylesheet" href="/pages/vip/_templates/nav.css">
-  <link rel="stylesheet" href="/pages/vip/style.css">
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/_templates/nav.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/style.css?v=2">
 </head>
 <body>
   <main class="vip-page">

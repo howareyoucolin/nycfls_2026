@@ -5,8 +5,6 @@ require_once ROOT_PATH . 'api/_vip_admin_auth.php';
 
 $publishableKey = vip_admin_get_publishable_key();
 $adminNavCurrent = 'debug';
-$authScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/auth.js');
-$pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/debug/script.js');
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -14,8 +12,8 @@ $pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/debug/scri
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VIP Admin - Debug Log</title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <link rel="stylesheet" href="/pages/vip/admin/style.css">
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/admin/style.css?v=2">
 </head>
 <body>
   <main
@@ -91,7 +89,7 @@ $pageScriptVersion = (string) @filemtime(ROOT_PATH . 'pages/vip/admin/debug/scri
       </div>
     </section>
   </main>
-  <script src="/pages/vip/admin/auth.js?v=<?php echo urlencode($authScriptVersion); ?>" defer></script>
-  <script src="/pages/vip/admin/debug/script.js?v=<?php echo urlencode($pageScriptVersion); ?>" defer></script>
+  <script src="/pages/vip/admin/auth.js?v=2" defer></script>
+  <script src="/pages/vip/admin/debug/script.js?v=2" defer></script>
 </body>
 </html>

@@ -208,9 +208,9 @@ function vip_public_origin(): string
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>群成员列表</title>
-  <link rel="stylesheet" href="/assets/style.css">
-  <link rel="stylesheet" href="/pages/vip/_templates/nav.css">
-  <link rel="stylesheet" href="/pages/vip/style.css">
+  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/_templates/nav.css?v=2">
+  <link rel="stylesheet" href="/pages/vip/style.css?v=2">
 </head>
 <body>
   <main class="vip-page">
@@ -399,6 +399,6 @@ function vip_public_origin(): string
       </div>
     </div>
   </div>
-  <script src="/pages/vip/script.js" defer></script>
+  <script src="/pages/vip/script.js?v=2" defer></script>
 </body>
 </html>
